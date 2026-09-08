@@ -15,6 +15,8 @@ on:
       - 'configs/m2-2a-coverage-v0.1.json'
       - 'configs/m2-2b-identity-bridge-v0.1.json'
       - 'schemas/examples/user-policy.examples.json'
+      - 'ROADMAP.md'
+      - 'docs/results/M2_2C_EXPLAINABLE_SCREENER_V01.md'
       - '.github/workflows/m2-screener-report.yml'
   workflow_dispatch:
 
