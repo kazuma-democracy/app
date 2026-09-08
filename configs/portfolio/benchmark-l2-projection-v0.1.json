@@ -16,7 +16,7 @@
     "exclude_weight": 0.0
   },
   "identity": {
-    "unmapped_behavior": "retain_unscreened_no_tilt",
+    "unmapped_behavior": "retain_unscreened_at_benchmark_reference",
     "disputed_behavior": "fail_closed"
   },
   "decision_semantics": {
