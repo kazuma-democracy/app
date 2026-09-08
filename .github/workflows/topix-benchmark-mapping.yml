@@ -1,0 +1,35 @@
+name: topix-benchmark-mapping
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'configs/m3-3b-topix-benchmark-v0.1.json'
+      - 'src/wa_commons/portfolio/benchmark_snapshot.py'
+      - 'scripts/run_topix_benchmark_mapping.py'
+      - 'tests/test_topix_benchmark_snapshot.py'
+      - 'tests/test_topix_benchmark_mapping.py'
+      - 'tests/test_topix_benchmark_mapping_cli.py'
+      - 'docs/results/M3_3B_TOPIX_BENCHMARK_MAPPING_V01.md'
+      - '.github/workflows/topix-benchmark-mapping.yml'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - name: Run Issue 50 focused contracts
+        run: >-
+          python -m pytest -q
+          tests/test_topix_benchmark_snapshot.py
+          tests/test_topix_benchmark_mapping.py
+          tests/test_topix_benchmark_mapping_cli.py
+      - name: Verify operator CLI is local-input only
+        run: python scripts/run_topix_benchmark_mapping.py --help >/dev/null

@@ -272,3 +272,43 @@ def map_topix_snapshot(
         "rows": mapped_rows,
     })
     return {"manifest": manifest, "rows": mapped_rows}
+
+
+def sha256_file(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_topix_benchmark_mapping(
+    payload: Mapping[str, Any],
+    local_output: str | Path,
+    public_output: str | Path,
+) -> None:
+    local_path = Path(local_output)
+    public_path = Path(public_output)
+    if local_path.resolve() == public_path.resolve():
+        raise ValueError("local and public outputs must differ")
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    public_path.parent.mkdir(parents=True, exist_ok=True)
+    local_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    manifest = dict(payload.get("manifest", {}))
+    public_keys = (
+        "artifact_version", "benchmark_id", "provider", "constituent_product",
+        "effective_date", "available_at", "index_code", "return_index_code",
+        "currency", "weight_basis", "rights_mode", "raw_publication",
+        "source_sha256", "config_sha256", "constituent_count", "benchmark_weight_sum",
+        "semantic_snapshot_sha256", "identity_semantic_sha256", "mapping_summary",
+        "semantic_mapping_sha256", "code_commit",
+    )
+    public_payload = {key: manifest[key] for key in public_keys if key in manifest}
+    public_path.write_text(
+        json.dumps(public_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
