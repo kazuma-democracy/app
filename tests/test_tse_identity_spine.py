@@ -1,3 +1,5 @@
+import copy
+
 from wa_commons.identity.models import SourceRef
 from wa_commons.identity.tse_spine import build_tse_identity_spine
 
@@ -43,6 +45,14 @@ def universe_entity(code: str, name: str, *, corporate_number: str | None = None
     }
 
 
+def metadata() -> dict:
+    return {
+        "edinet": {"snapshot": "2026-08-31", "sha256": "edinet-sha"},
+        "nta": {"snapshot": "2026-08-31", "sha256": "nta-sha"},
+        "gleif": {"snapshot": "2026-08-31", "sha256": "gleif-sha"},
+    }
+
+
 def test_every_universe_entity_is_preserved_and_identity_states_partition_output():
     universe = {
         "manifest": {
@@ -66,11 +76,7 @@ def test_every_universe_entity_is_preserved_and_identity_states_partition_output
         edinet_rows=edinet_rows,
         edinet_source=src("EDINET"),
         code_commit="deadbeef",
-        source_metadata={
-            "edinet": {"snapshot": "2026-08-31", "sha256": "edinet-sha"},
-            "nta": {"snapshot": "2026-08-31", "sha256": "nta-sha"},
-            "gleif": {"snapshot": "2026-08-31", "sha256": "gleif-sha"},
-        },
+        source_metadata=metadata(),
     )
 
     assert [row["entity_id"] for row in result["entities"]] == [
@@ -84,3 +90,28 @@ def test_every_universe_entity_is_preserved_and_identity_states_partition_output
     assert result["manifest"]["disputed_count"] == 1
     assert result["manifest"]["mapped_count"] + result["manifest"]["unresolved_count"] + result["manifest"]["disputed_count"] == 3
     assert result["manifest"]["identity_policy_version"] == "wa-conservative-v0.2"
+
+
+def test_semantic_identity_hash_ignores_input_order_and_retrieval_time():
+    first = {
+        "manifest": {"snapshot": "20260831", "source_sha256": "jpx-sha", "semantic_payload_sha256": "universe-sha"},
+        "entities": [universe_entity("1002", "Two Co"), universe_entity("1001", "One Co")],
+    }
+    second = copy.deepcopy(first)
+    second["entities"].reverse()
+    for entity in second["entities"]:
+        for identifier in entity["identifiers"]:
+            identifier["source"]["retrieved_at"] = "2026-09-09T12:34:56Z"
+
+    kwargs = {
+        "edinet_rows": [
+            {"証券コード": "10010", "ＥＤＩＮＥＴコード": "E10001", "提出者法人番号": "1111111111111"}
+        ],
+        "edinet_source": src("EDINET"),
+        "code_commit": "deadbeef",
+        "source_metadata": metadata(),
+    }
+    first_result = build_tse_identity_spine(first, **kwargs)
+    second_result = build_tse_identity_spine(second, **kwargs)
+
+    assert first_result["manifest"]["semantic_identity_sha256"] == second_result["manifest"]["semantic_identity_sha256"]
