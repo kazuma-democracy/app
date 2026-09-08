@@ -89,6 +89,13 @@ def _exclusion_category(market: str) -> str:
     return "other_market"
 
 
+def _normalize_snapshot_date(value: object) -> str:
+    text = str(value).strip()
+    if text.endswith(".0"):
+        text = text[:-2]
+    return text.replace("-", "").replace("/", "")
+
+
 def _semantic_projection(entities: list[dict[str, object]]) -> list[dict[str, str]]:
     return [
         {
@@ -126,6 +133,7 @@ def build_universe(
     """
 
     path = Path(path)
+    expected_source_date = _normalize_snapshot_date(snapshot)
     source = SourceRef(
         source="JPX",
         source_key=path.name,
@@ -140,11 +148,18 @@ def build_universe(
         "reit": 0,
         "tokyo_pro_market": 0,
         "other_market": 0,
-        "invalid_row": 0,
     }
     entities: list[dict[str, object]] = []
 
     for row in read_jpx_rows(path):
+        source_date = _normalize_snapshot_date(row.get("日付", ""))
+        if not source_date:
+            raise ValueError("source row date missing")
+        if source_date != expected_source_date:
+            raise ValueError(
+                f"source row date {source_date} does not match snapshot {expected_source_date}"
+            )
+
         market = str(row.get("市場・商品区分", "")).strip()
         segment = IN_SCOPE_MARKETS.get(market)
         if segment is None:
@@ -154,8 +169,7 @@ def build_universe(
         code = str(row.get("コード", "")).strip()
         name = str(row.get("銘柄名", "")).strip()
         if not code or not name:
-            exclusion_counts["invalid_row"] += 1
-            continue
+            raise ValueError("in-scope JPX row missing security code or name")
 
         entity = from_jpx_row(row, source)
         security_code = entity.identifiers[0].value
