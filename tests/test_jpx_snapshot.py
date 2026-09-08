@@ -42,6 +42,15 @@ def _write_universe_fixture(path: Path, rows: list[str] | None = None) -> None:
     )
 
 
+def _build_fixture_universe(path: Path) -> dict:
+    return jpx_snapshot.build_universe(
+        path,
+        snapshot="2026-08-31",
+        source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
+        retrieved_at="2026-09-08T00:00:00Z",
+    )
+
+
 def test_domestic_filter_excludes_etf_and_pro_market(tmp_path):
     fixture = tmp_path / "data_j.csv"
     _write_fixture(fixture)
@@ -72,12 +81,7 @@ def test_build_universe_filters_and_emits_non_row_manifest(tmp_path):
     fixture = tmp_path / "listed.csv"
     _write_universe_fixture(fixture)
 
-    payload = jpx_snapshot.build_universe(
-        fixture,
-        snapshot="2026-08-31",
-        source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
-        retrieved_at="2026-09-08T00:00:00Z",
-    )
+    payload = _build_fixture_universe(fixture)
 
     assert [row["security_code"] for row in payload["entities"]] == ["1001", "1002", "1003"]
     assert [row["market_segment"] for row in payload["entities"]] == [
@@ -132,9 +136,21 @@ def test_build_universe_rejects_duplicate_security_codes(tmp_path):
     _write_universe_fixture(fixture, rows)
 
     with pytest.raises(ValueError, match="duplicate security_code: 1001"):
-        jpx_snapshot.build_universe(
-            fixture,
-            snapshot="2026-08-31",
-            source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
-            retrieved_at="2026-09-08T00:00:00Z",
-        )
+        _build_fixture_universe(fixture)
+
+
+def test_write_universe_separates_local_rows_from_public_manifest(tmp_path):
+    fixture = tmp_path / "listed.csv"
+    _write_universe_fixture(fixture)
+    payload = _build_fixture_universe(fixture)
+    local_output = tmp_path / "universe.local.json"
+    public_manifest = tmp_path / "universe.manifest.json"
+
+    jpx_snapshot.write_universe(payload, local_output, public_manifest)
+
+    assert json.loads(local_output.read_text(encoding="utf-8")) == payload
+    assert json.loads(public_manifest.read_text(encoding="utf-8")) == payload["manifest"]
+    assert "主要テスト" in local_output.read_text(encoding="utf-8")
+    manifest_text = public_manifest.read_text(encoding="utf-8")
+    assert "主要テスト" not in manifest_text
+    assert "1001" not in manifest_text
