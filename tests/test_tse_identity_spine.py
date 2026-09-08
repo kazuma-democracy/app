@@ -1,6 +1,8 @@
 import copy
 import json
 
+import pytest
+
 from wa_commons.identity import tse_spine
 from wa_commons.identity.models import SourceRef
 from wa_commons.identity.tse_spine import build_tse_identity_spine
@@ -173,3 +175,13 @@ def test_writer_keeps_row_level_identity_local_and_public_output_manifest_only(t
     assert "entities" not in public
     assert "Private Row Co" not in public_path.read_text(encoding="utf-8")
     assert "1001" not in public_path.read_text(encoding="utf-8")
+
+
+def test_writer_rejects_same_local_and_public_path_before_writing(tmp_path):
+    same_path = tmp_path / "identity.json"
+    payload = {"manifest": {"entity_count": 0}, "entities": []}
+
+    with pytest.raises(ValueError, match="must differ"):
+        tse_spine.write_tse_identity_spine(payload, same_path, same_path)
+
+    assert not same_path.exists()
