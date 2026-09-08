@@ -4,8 +4,10 @@ import json
 from decimal import Decimal
 from pathlib import Path
 
+import jsonschema
 import pytest
 
+import wa_commons.portfolio as portfolio
 import wa_commons.portfolio.constructor as constructor
 from wa_commons.portfolio.constructor import construct_paper_portfolio
 
@@ -17,6 +19,15 @@ ROOT = Path(__file__).resolve().parents[1]
 def default_config() -> dict:
     return json.loads(
         (ROOT / "configs/portfolio/benchmark-l2-projection-v0.1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+
+@pytest.fixture
+def constructor_schema() -> dict:
+    return json.loads(
+        (ROOT / "schemas/paper-portfolio-constructor.v0.1.schema.json").read_text(
             encoding="utf-8"
         )
     )
@@ -126,6 +137,17 @@ def test_preference_signals_deduplicate_by_rule_id(default_config: dict) -> None
     assert entry["score"] == 0.3
 
 
+def test_conflicting_duplicate_preference_rule_is_rejected(default_config: dict) -> None:
+    rows = _rows()
+    rows[0]["preference_signals"] = [
+        {"rule_id": "r1", "direction": "prefer", "weight": 0.4},
+        {"rule_id": "r1", "direction": "avoid", "weight": 0.4},
+    ]
+
+    with pytest.raises(ValueError, match="conflicting preference definition"):
+        construct_paper_portfolio(rows, _provenance(), default_config)
+
+
 def test_strongest_soft_avoid_remains_nonzero(default_config: dict) -> None:
     rows = _rows()
     rows[0]["preference_signals"] = [
@@ -177,3 +199,108 @@ def test_non_optimal_solver_status_emits_no_portfolio(
 
     assert result["status"] == "SOLVER_FAILURE"
     assert result["target_weights"] == []
+
+
+def test_input_order_does_not_change_target_or_hash(default_config: dict) -> None:
+    rows = _rows()
+    rows[0]["preference_signals"] = [
+        {"rule_id": "r1", "direction": "prefer", "weight": 0.4}
+    ]
+    forward = construct_paper_portfolio(rows, _provenance(), default_config)
+    reverse = construct_paper_portfolio(list(reversed(rows)), _provenance(), default_config)
+
+    assert forward["target_weights"] == reverse["target_weights"]
+    assert forward["manifest"]["semantic_target_hash"] == reverse["manifest"][
+        "semantic_target_hash"
+    ]
+    assert len(forward["manifest"]["semantic_target_hash"]) == 64
+
+
+def test_canonical_weights_obey_all_invariants(default_config: dict) -> None:
+    rows = _rows()
+    rows[0]["decision"] = "EXCLUDE"
+    rows[1]["preference_signals"] = [
+        {"rule_id": "r1", "direction": "prefer", "weight": 1.0}
+    ]
+
+    result = construct_paper_portfolio(rows, _provenance(), default_config)
+    weights = [Decimal(item["target_weight"]) for item in result["target_weights"]]
+
+    assert sum(weights) == Decimal("1.000000000000")
+    assert min(weights) >= 0
+    assert max(weights) <= Decimal("0.100000000000")
+    assert result["target_weights"][0]["target_weight"] == "0.000000000000"
+
+
+def test_fixed_fixture_semantic_hash_repeats(default_config: dict) -> None:
+    first = construct_paper_portfolio(_rows(), _provenance(), default_config)
+    second = construct_paper_portfolio(_rows(), _provenance(), default_config)
+
+    assert first["manifest"]["semantic_target_hash"] == second["manifest"][
+        "semantic_target_hash"
+    ]
+
+
+def test_config_matches_schema(default_config: dict, constructor_schema: dict) -> None:
+    jsonschema.validate(default_config, constructor_schema)
+
+
+def test_manifest_records_runtime_solver_and_policy_summaries(default_config: dict) -> None:
+    rows = _rows()
+    rows[0]["decision"] = "EXCLUDE"
+    rows[1]["decision"] = "WATCH"
+    rows[2] = {
+        "security_id": "TSE:1002",
+        "benchmark_weight": 0.05,
+        "mapping_state": "unmapped",
+        "preference_signals": [],
+    }
+
+    result = construct_paper_portfolio(rows, _provenance(), default_config)
+    manifest = result["manifest"]
+
+    assert len(manifest["config_hash"]) == 64
+    assert manifest["input_security_count"] == 20
+    assert manifest["benchmark_weight_sum"] == "1.000000000000"
+    assert manifest["mapping_summary"] == {
+        "mapped_count": 19,
+        "unmapped_count": 1,
+        "disputed_count": 0,
+        "mapped_benchmark_weight": "0.950000000000",
+        "unmapped_benchmark_weight": "0.050000000000",
+        "disputed_benchmark_weight": "0.000000000000",
+    }
+    assert manifest["decision_summary"] == {
+        "EXCLUDE": {"count": 1, "benchmark_weight": "0.050000000000"},
+        "WATCH": {"count": 1, "benchmark_weight": "0.050000000000"},
+        "NONE": {"count": 17, "benchmark_weight": "0.850000000000"},
+    }
+    assert manifest["runtime"]["cvxpy"] == "1.9.2"
+    assert manifest["runtime"]["osqp"] == "1.1.3"
+    assert manifest["solver"]["name"] == "OSQP"
+    assert manifest["solver"]["options"]["eps_abs"] == 1e-8
+    assert manifest["target_summary"]["sum"] == "1.000000000000"
+    assert Decimal(manifest["target_summary"]["max"]) <= Decimal("0.100000000000")
+    assert manifest["provenance"] == _provenance()
+
+
+def test_bad_benchmark_sum_is_not_silently_normalized(default_config: dict) -> None:
+    rows = _rows()
+    rows[0]["benchmark_weight"] = 0.04
+
+    with pytest.raises(ValueError, match="do not reconcile"):
+        construct_paper_portfolio(rows, _provenance(), default_config)
+
+
+def test_portfolio_package_has_no_real_money_interfaces() -> None:
+    forbidden = {
+        "buy",
+        "sell",
+        "order",
+        "broker",
+        "execute_trade",
+        "place_order",
+        "credentials",
+    }
+
+    assert forbidden.isdisjoint(set(dir(portfolio)))
