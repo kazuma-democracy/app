@@ -1,0 +1,39 @@
+name: tse-evidence-coverage
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/wa_commons/evidence/coverage.py'
+      - 'src/wa_commons/evidence/tse_coverage.py'
+      - 'scripts/run_tse_evidence_coverage.py'
+      - 'tests/test_tse_evidence_coverage.py'
+      - 'tests/test_tse_evidence_linking.py'
+      - 'tests/test_tse_evidence_coverage_io.py'
+      - 'tests/test_tse_evidence_coverage_runner.py'
+      - 'tests/test_tse_evidence_coverage_cli.py'
+      - 'docs/results/M3_2D_TSE_EVIDENCE_COVERAGE_V01.md'
+      - '.github/workflows/tse-evidence-coverage.yml'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - name: Run Issue 54 focused contracts
+        run: >-
+          python -m pytest -q
+          tests/test_tse_evidence_coverage.py
+          tests/test_tse_evidence_linking.py
+          tests/test_tse_evidence_coverage_io.py
+          tests/test_tse_evidence_coverage_runner.py
+          tests/test_tse_evidence_coverage_cli.py
+      - name: Verify operator CLI is local-input only
+        run: python scripts/run_tse_evidence_coverage.py --help >/dev/null

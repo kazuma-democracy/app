@@ -1,0 +1,115 @@
+{
+  "manifest": {
+    "artifact_version": "m3-2d-tse-coverage-v0.1",
+    "category_count": 5,
+    "category_state_counts": {
+      "arms_industry": {
+        "not_integrated": 3707
+      },
+      "military_contract": {
+        "no_match": 3692,
+        "observed": 7,
+        "unresolved_identity": 8
+      },
+      "official_listing": {
+        "not_integrated": 3707
+      },
+      "political_finance": {
+        "unresolved_identity": 3707
+      },
+      "responsible_business_conduct_case": {
+        "not_integrated": 3707
+      }
+    },
+    "code_commit": "e2268900aef5bfdfbaf7ac3723a4a967af9d7a4e",
+    "coverage_semantic_sha256": "ccc77af755a6022031d5aca6bc8fbd1f53b7136eb460c0fd69d17e07263f0941",
+    "identity_entity_count": 3707,
+    "identity_semantic_sha256": "a74d81a27e19d3a746e1d3669842f7284f43ac45d3ae8601cdd6741d7ebe6733",
+    "source_count": 5,
+    "source_state_counts": {
+      "jp-mod-procurement": {
+        "no_match": 3692,
+        "observed": 7,
+        "unresolved_identity": 8
+      },
+      "jp-political-finance": {
+        "unresolved_identity": 3707
+      },
+      "oecd-ncp-cases": {
+        "not_integrated": 3707
+      },
+      "sipri-arms-industry": {
+        "not_integrated": 3707
+      },
+      "us-uflpa-entity-list": {
+        "not_integrated": 3707
+      }
+    },
+    "state_counts": {
+      "no_match": 3692,
+      "not_integrated": 11121,
+      "observed": 7,
+      "unknown": 0,
+      "unresolved_identity": 3715
+    }
+  },
+  "source_catalog": [
+    {
+      "category": "military_contract",
+      "coverage_interpretation": "no_match_is_not_clean_safe_or_pass",
+      "integration_state": "integrated",
+      "provenance": {
+        "adapter_version": "0.1",
+        "identity_method": "exact_japanese_corporate_number",
+        "snapshot_version": "fy2026-04-buppin-competitive",
+        "source_sha256": "c1f37e838d66ffa7bc62c35c5d8830c75ed7b92b0befe0c380f0d79052c773e8"
+      },
+      "run_state": "complete",
+      "source_id": "jp-mod-procurement"
+    },
+    {
+      "category": "political_finance",
+      "coverage_interpretation": "no_match_is_not_clean_safe_or_pass",
+      "identity_linkage_state": "unresolved",
+      "integration_state": "integrated",
+      "provenance": {
+        "adapter_version": "0.1",
+        "identity_method": "strong_id_only_name_only_is_unresolved",
+        "snapshot_version": "soumu-SS20241129-kokumin-seiji-kyokai-r5",
+        "source_sha256": "e8871ed2cb62729ec8a8c01028c3da2f797a6f65972abfb8dc4dcf757f11c8fe"
+      },
+      "run_state": "complete",
+      "source_id": "jp-political-finance"
+    },
+    {
+      "category": "responsible_business_conduct_case",
+      "coverage_interpretation": "no_match_is_not_clean_safe_or_pass",
+      "integration_state": "not_integrated",
+      "provenance": {
+        "registry_decision": "ADOPT"
+      },
+      "run_state": "not_run",
+      "source_id": "oecd-ncp-cases"
+    },
+    {
+      "category": "arms_industry",
+      "coverage_interpretation": "no_match_is_not_clean_safe_or_pass",
+      "integration_state": "not_integrated",
+      "provenance": {
+        "registry_decision": "ADOPT as specialist evidence"
+      },
+      "run_state": "not_run",
+      "source_id": "sipri-arms-industry"
+    },
+    {
+      "category": "official_listing",
+      "coverage_interpretation": "no_match_is_not_clean_safe_or_pass",
+      "integration_state": "not_integrated",
+      "provenance": {
+        "registry_decision": "ADOPT"
+      },
+      "run_state": "not_run",
+      "source_id": "us-uflpa-entity-list"
+    }
+  ]
+}
