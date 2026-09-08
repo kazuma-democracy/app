@@ -65,17 +65,18 @@ Stop without producing acceptance if any of these occurs:
 - repeated runs produce different semantic hashes;
 - public output contains row-level constituent data or canonical entity IDs.
 
-## Current validation evidence
+## Current acceptance evidence
 
-On 2026-09-08, the live JPX CSV was still effective `2026-07-31`, so it is not the target #50 `2026-08-31` acceptance input.
+On 2026-09-08, the official JPX public CSV was effective `2026-07-31`. That snapshot is the first accepted #50 public-weight input because it was the latest official point-in-time snapshot reproducible on the acceptance date. The later `2026-08-31` file was not yet published, and no portfolio or benchmark-return result was inspected to choose the earlier reproducible snapshot.
 
-A non-canonical operator validation against that live file produced:
+Measured acceptance produced:
 
 - 1,637 constituent rows;
 - raw SHA-256 `e8bb15ddbe6f65c11363fe1f816feabc125b8587c520f358dcf191a4e7db0ae7`;
 - provider published weight sum `0.999996` and rounding gap `0.000004`;
 - normalized benchmark sum `1.000000000000`;
 - exact #53 mapping: 1,637 mapped, 0 unresolved, 0 disputed, 0 out-of-canonical-universe;
-- identical semantic mapping SHA-256 on two runs: `1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409`.
+- identical semantic mapping SHA-256 on two runs: `1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409`;
+- aggregate-only acceptance manifest `docs/results/M3_3B_TOPIX_BENCHMARK_MAPPING_MANIFEST_V01.json`.
 
-These numbers validate the operator path only. They are not the #50 target snapshot and must not be promoted to the M3.3b acceptance manifest.
+Do not silently roll this canonical snapshot forward. A later month requires an explicit new pin and the same fail-closed checks.
