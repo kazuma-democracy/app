@@ -9,6 +9,12 @@ from .coverage import build_coverage_matrix, canonical_coverage_sha256
 
 TSE_COVERAGE_ARTIFACT_VERSION = "m3-2d-tse-coverage-v0.1"
 MOD_SOURCE_ID = "jp-mod-procurement"
+_PUBLIC_PILOT_MEASUREMENT_KEYS = {
+    "pilot_matched_entity_count",
+    "unresolved_observation_count",
+    "canonical_claim_count",
+    "measurement_note",
+}
 
 
 def _corporate_number_values(entity: Mapping[str, object]) -> set[str]:
@@ -107,6 +113,21 @@ def _state_counts_by_category(
     }
 
 
+def _public_source_catalog(source_catalog: Iterable[Mapping[str, object]]) -> list[dict[str, object]]:
+    public_catalog: list[dict[str, object]] = []
+    for raw_source in source_catalog:
+        source = dict(raw_source)
+        provenance = source.get("provenance")
+        if isinstance(provenance, Mapping):
+            source["provenance"] = {
+                key: value
+                for key, value in provenance.items()
+                if key not in _PUBLIC_PILOT_MEASUREMENT_KEYS
+            }
+        public_catalog.append(source)
+    return public_catalog
+
+
 def build_tse_coverage(
     identity: Mapping[str, object],
     *,
@@ -185,7 +206,7 @@ def write_tse_coverage(
     )
     public_payload = {
         "manifest": payload["manifest"],
-        "source_catalog": payload["source_catalog"],
+        "source_catalog": _public_source_catalog(payload["source_catalog"]),
     }
     public_path.write_text(
         json.dumps(public_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
