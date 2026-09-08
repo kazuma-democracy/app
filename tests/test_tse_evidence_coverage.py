@@ -11,22 +11,35 @@ def coverage_api():
     return build_tse_coverage
 
 
+def _entity(index: int) -> dict:
+    identifiers = []
+    if index <= 3699:
+        identifiers.append(
+            {
+                "scheme": "JP_CORPORATE_NUMBER",
+                "value": f"{index:013d}",
+                "source": {},
+            }
+        )
+    return {
+        "entity_id": f"wa:org:jp:tse:{index:04d}",
+        "review_state": "CONFIRMED",
+        "identifiers": identifiers,
+    }
+
+
 def test_tse_wide_coverage_preserves_all_entities_and_states():
     build = coverage_api()
 
-    entities = [
-        {
-            "entity_id": f"wa:org:jp:tse:{index:04d}",
-            "review_state": "CONFIRMED" if index <= 3699 else "UNRESOLVED",
-        }
-        for index in range(1, 3708)
-    ]
     identity = {
         "manifest": {
             "entity_count": 3707,
+            "mapped_count": 3699,
+            "unresolved_count": 8,
+            "disputed_count": 0,
             "semantic_identity_sha256": "identity-sha",
         },
-        "entities": entities,
+        "entities": [_entity(index) for index in range(1, 3708)],
     }
     source_catalog = [
         {
@@ -80,6 +93,13 @@ def test_tse_wide_coverage_preserves_all_entities_and_states():
         "unknown": 0,
         "unresolved_identity": 3715,
     }
+
+    unresolved_mod_rows = [
+        row
+        for row in matrix["rows"]
+        if row["source_id"] == "jp-mod-procurement" and row["state"] == "unresolved_identity"
+    ]
+    assert len(unresolved_mod_rows) == 8
 
     assert result["manifest"]["identity_entity_count"] == 3707
     assert result["manifest"]["identity_semantic_sha256"] == "identity-sha"
