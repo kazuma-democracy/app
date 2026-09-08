@@ -50,3 +50,22 @@ Publication of actual market-performance numbers is a separate rights check. The
 ## Handoff
 
 Issue #78 fixes source roles and rights boundaries only. It does not download October market rows, implement parsers, resolve actual held-security events, or calculate performance. Those actions remain #56 work.
+
+## Return and action semantics
+
+The downstream #56 implementation must calculate one monthly gross total-wealth return. Start wealth is based on frozen position units/weights and the 2026-09-30 closing price. End wealth uses the 2026-10-30 closing price, only explicitly evidenced action-adjusted units, and explicit cash dividends or cash consideration attributable to the holding.
+
+Cash distributions remain cash through the endpoint. Synthetic reinvestment is prohibited for M3 v1. A split ratio, merger conversion, cash-out amount, or delisting treatment may never be inferred from a price jump.
+
+Any unresolved start/end price, dividend amount, action term, identity, or contradictory action record fails closed. Missing rows are never zero-filled and name-only security relinking is prohibited.
+
+## Parser contract for #56
+
+Issue #78 does not implement parsers. It requires #56 to:
+
+- map only by exact JPX security code;
+- extract only held-security rows needed by the run;
+- record source SHA-256, retrieval timestamp, and source locator;
+- detect duplicate/conflicting rows and BLOCK;
+- never zero-fill a missing price/action;
+- preserve the configured held-security and snapshot terminal states exactly.
