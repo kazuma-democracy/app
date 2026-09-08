@@ -188,8 +188,17 @@ def build_company_research_views(
 
     company_to_number, number_to_company = _confirmed_bridge(identity_bridge)
     missing_bridge = sorted(set(company_ids) - set(company_to_number))
-    if missing_bridge:
-        raise ValueError(f"confirmed identity bridge missing coverage entities: {missing_bridge}")
+    invalid_missing_bridge = [
+        entity_id
+        for entity_id in missing_bridge
+        if "unresolved_identity" not in set(coverage[entity_id].values())
+        or set(coverage[entity_id].values()) & {"observed", "no_match"}
+    ]
+    if invalid_missing_bridge:
+        raise ValueError(
+            "confirmed identity bridge missing resolved coverage entities: "
+            f"{invalid_missing_bridge}"
+        )
 
     claims_by_company, unmapped_claim_ids = _map_claims_to_companies(
         evidence_graph,
