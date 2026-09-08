@@ -91,11 +91,11 @@ def test_cli_help_exposes_no_network_acquisition_option():
     assert "--download" not in help_text
 
 
-def _write_public_weight(path: Path) -> None:
+def _write_public_weight(path: Path, date: str = "20260831") -> None:
     text = (
         "日付,銘柄名,コード,業種,TOPIXに占める個別銘柄のウエイト,ニューインデックス区分\n"
-        "20260831,Alpha,1000,建設業,60.0000%,TOPIX Mid400\n"
-        "20260831,Beta,1001,建設業,40.0000%,TOPIX Small 1\n"
+        f"{date},Alpha,1000,建設業,60.0000%,TOPIX Mid400\n"
+        f"{date},Beta,1001,建設業,40.0000%,TOPIX Small 1\n"
     )
     path.write_bytes(text.encode("cp932"))
 
@@ -159,7 +159,7 @@ def test_cli_public_weight_uses_versioned_default_config(tmp_path):
     identity = tmp_path / "identity.json"
     local_output = tmp_path / "local.json"
     public_output = tmp_path / "public.json"
-    _write_public_weight(public_weight)
+    _write_public_weight(public_weight, date="20260731")
     _write_identity(identity)
 
     result = subprocess.run(
@@ -180,13 +180,15 @@ def test_cli_public_weight_uses_versioned_default_config(tmp_path):
     assert result.returncode == 0, result.stderr
     payload = json.loads(public_output.read_text(encoding="utf-8"))
     assert payload["artifact_version"] == "m3.3b-topix-benchmark-v0.2"
+    assert payload["effective_date"] == "2026-07-31"
+    assert payload["available_at"] == "2026-08-31T16:20:00+09:00"
 
 
 def test_cli_reports_not_yet_published_for_stale_public_weight(tmp_path):
     public_weight = tmp_path / "topixweight_j.csv"
     text = (
         "日付,銘柄名,コード,業種,TOPIXに占める個別銘柄のウエイト,ニューインデックス区分\n"
-        "20260731,Alpha,1000,建設業,100.0000%,TOPIX Mid400\n"
+        "20260630,Alpha,1000,建設業,100.0000%,TOPIX Mid400\n"
     )
     public_weight.write_bytes(text.encode("cp932"))
     identity = tmp_path / "identity.json"
