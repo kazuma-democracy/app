@@ -60,3 +60,24 @@ def test_spine_rejects_universe_manifest_entity_count_mismatch():
             code_commit="deadbeef",
             source_metadata={},
         )
+
+
+def test_spine_rejects_duplicate_jpx_security_code_in_universe():
+    universe = {
+        "manifest": {
+            "snapshot": "20260831",
+            "source_sha256": "jpx-sha",
+            "semantic_payload_sha256": "universe-sha",
+            "entity_count": 2,
+        },
+        "entities": [entity("1001"), entity("1001")],
+    }
+
+    with pytest.raises(ValueError, match="duplicate JPX_SECURITY_CODE"):
+        build_tse_identity_spine(
+            universe,
+            edinet_rows=[],
+            edinet_source=src(),
+            code_commit="deadbeef",
+            source_metadata={},
+        )
