@@ -193,3 +193,48 @@ def test_semantic_screening_hash_is_input_order_independent():
         identity_bridge=shuffled_bridge,
     )
     assert first["screening_sha256"] == second["screening_sha256"]
+
+
+def test_unresolved_identity_company_without_bridge_is_preserved_as_none():
+    build = screening_api()
+    coverage, graph, bridge, policies = fixture_inputs()
+    coverage["matrix"]["rows"] = [
+        {**row, "state": "unresolved_identity"}
+        if row["entity_id"] == "wa:org:jp:tse:1002"
+        else row
+        for row in coverage["matrix"]["rows"]
+    ]
+    bridge["links"] = [
+        link for link in bridge["links"]
+        if link["entity_id"] != "wa:org:jp:tse:1002"
+    ]
+
+    result = build(
+        coverage_artifact=coverage,
+        evidence_graph=graph,
+        policies=policies,
+        identity_bridge=bridge,
+    )
+
+    views = [v for v in result["views"] if v["entity_id"] == "wa:org:jp:tse:1002"]
+    assert len(views) == 3
+    assert {v["decision"] for v in views} == {"NONE"}
+    assert all(v["claim_results"] == [] for v in views)
+    assert all(set(v["coverage_states"].values()) == {"unresolved_identity"} for v in views)
+
+
+def test_missing_bridge_with_resolved_coverage_fails_closed():
+    build = screening_api()
+    coverage, graph, bridge, policies = fixture_inputs()
+    bridge["links"] = [
+        link for link in bridge["links"]
+        if link["entity_id"] != "wa:org:jp:tse:1002"
+    ]
+
+    with pytest.raises(ValueError, match="missing resolved coverage entities"):
+        build(
+            coverage_artifact=coverage,
+            evidence_graph=graph,
+            policies=policies,
+            identity_bridge=bridge,
+        )

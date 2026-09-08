@@ -186,14 +186,14 @@ The financial evaluation contract was fixed before portfolio results are generat
 
 **Issue:** #6 — completed. See `docs/PAPER_PORTFOLIO_EVALUATION.md`.
 
-### Workstream 3B — Canonical Japan-equity universe — OPEN
+### Workstream 3B — Canonical Japan-equity universe — COMPLETE
 
 The product universe and the financial benchmark are intentionally separate concerns.
 
-1. **#46 — M3.2b1:** build one pinned canonical universe of domestic companies listed on TSE Prime, Standard and Growth. This is the direct scale step from the fixed 100-company engineering cohort to the broad Japan-equity company universe (roughly 3,700 companies; exact count is whatever the pinned official JPX snapshot establishes).
-2. **#53 — M3.2b2:** run the existing conservative JPX/EDINET/NTA/GLEIF identity spine across that complete canonical TSE universe.
-3. **#54 — M3.2d:** scale the completed #42 coverage-state machinery and already integrated evidence adapters across the complete canonical TSE identity universe.
-4. **#55 — M3.2e:** scale the completed #43 deterministic policy screening across that same TSE-wide evidence snapshot.
+1. **#46 — M3.2b1:** completed — pinned canonical domestic TSE Prime/Standard/Growth universe; measured result is 3,707 companies.
+2. **#53 — M3.2b2:** completed — conservative JPX/EDINET/NTA/GLEIF identity spine across all 3,707 companies; see `docs/results/M3_2B2_TSE_IDENTITY_SPINE_V01.md`.
+3. **#54 — M3.2d:** completed — #42 coverage-state machinery scaled to all 3,707 companies; see `docs/results/M3_2D_TSE_EVIDENCE_COVERAGE_V01.md`.
+4. **#55 — M3.2e:** completed — #43 deterministic policy screening scaled to 3,707 companies × 3 profiles; see `docs/results/M3_2E_TSE_POLICY_SCREENING_V01.md`.
 
 The 100-company cohort remains a stable regression and explainability fixture. It is not an intermediate investment universe and is not replaced by a hand-picked 1,500-company stage.
 

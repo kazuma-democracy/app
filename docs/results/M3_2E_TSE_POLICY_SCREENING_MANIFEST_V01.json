@@ -1,0 +1,82 @@
+{
+  "artifact_version": "m3.2e-tse-screening-v0.1",
+  "code_commit": "2242b323989719787ba847e5e18c452a175bb213",
+  "company_count": 3707,
+  "confirmed_identity_bridge_count": 3699,
+  "coverage_matrix_sha256": "ccc77af755a6022031d5aca6bc8fbd1f53b7136eb460c0fd69d17e07263f0941",
+  "coverage_semantic_sha256": "ccc77af755a6022031d5aca6bc8fbd1f53b7136eb460c0fd69d17e07263f0941",
+  "decision_counts_by_profile": {
+    "example:controversial-weapons-only": {
+      "EXCLUDE": 0,
+      "NONE": 3707,
+      "WATCH": 0
+    },
+    "example:strict-military-avoidance": {
+      "EXCLUDE": 0,
+      "NONE": 3700,
+      "WATCH": 7
+    },
+    "example:transparency-first": {
+      "EXCLUDE": 0,
+      "NONE": 3700,
+      "WATCH": 7
+    }
+  },
+  "evidence_graph_sha256": "f165939ba1b784e5dc9c8f8a16a51762b4609395b3ec7cf6db9a015ada5b1f60",
+  "generated_claim_count": 172,
+  "graph_claim_count": 172,
+  "identity_bridge_sha256": "9c4f61b2b8fb545d9a0f7744bc3b0d558d88257c9ca55a8875867e7a51b54021",
+  "identity_semantic_sha256": "a74d81a27e19d3a746e1d3669842f7284f43ac45d3ae8601cdd6741d7ebe6733",
+  "interpretation": {
+    "none_is_not_pass": true,
+    "research_only": true,
+    "row_level_output_local_only": true
+  },
+  "issue": 55,
+  "mapped_claim_count": 20,
+  "mod_observation_count": 88,
+  "policies": [
+    {
+      "policy_sha256": "e82cb9854bb4dec585aa9913166c8deea0977642cd06f098ddf1d518b7e879c0",
+      "profile_id": "example:controversial-weapons-only",
+      "profile_version": "1"
+    },
+    {
+      "policy_sha256": "7b2558875af5f23ae32061c218a15de94dce479badf239f6b412bd77ba51a72c",
+      "profile_id": "example:strict-military-avoidance",
+      "profile_version": "1"
+    },
+    {
+      "policy_sha256": "441c15dc334771a1487366c806a5fd42fb3eca3af2f614757815a0cafd079a46",
+      "profile_id": "example:transparency-first",
+      "profile_version": "1"
+    }
+  ],
+  "policy_comparison": [
+    {
+      "decision_difference_count": 7,
+      "left_profile_id": "example:controversial-weapons-only",
+      "right_profile_id": "example:strict-military-avoidance",
+      "same_evidence_snapshot": true
+    },
+    {
+      "decision_difference_count": 7,
+      "left_profile_id": "example:controversial-weapons-only",
+      "right_profile_id": "example:transparency-first",
+      "same_evidence_snapshot": true
+    },
+    {
+      "decision_difference_count": 0,
+      "left_profile_id": "example:strict-military-avoidance",
+      "right_profile_id": "example:transparency-first",
+      "same_evidence_snapshot": true
+    }
+  ],
+  "profile_count": 3,
+  "screening_sha256": "75c073c01eb4438142a92ec72f95cce45f36f49a803903a6a31acdb7493dcff8",
+  "screening_version": "m2.2b-screening-v0.1",
+  "tse_screening_sha256": "aff7ea3437d2b19282e96b095e989f54d68bb7443eafc66e170396a9bcf2a17c",
+  "unmapped_claim_count": 152,
+  "unresolved_identity_entity_count": 8,
+  "view_count": 11121
+}
