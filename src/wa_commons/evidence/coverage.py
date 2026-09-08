@@ -23,7 +23,7 @@ def _entity_id(entity: Mapping[str, object]) -> str:
 
 
 def _identity_is_resolved(entity: Mapping[str, object]) -> bool:
-    return str(entity.get("review_state", "CONFIRMED")).upper() == "CONFIRMED"
+    return str(entity.get("review_state", "")).upper() == "CONFIRMED"
 
 
 def build_coverage_matrix(
