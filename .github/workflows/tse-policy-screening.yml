@@ -1,0 +1,37 @@
+name: tse-policy-screening
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/wa_commons/policy/company_view.py'
+      - 'src/wa_commons/policy/tse_screening.py'
+      - 'scripts/run_tse_policy_screening.py'
+      - 'tests/test_company_policy_screening.py'
+      - 'tests/test_tse_policy_screening.py'
+      - 'tests/test_tse_policy_screening_cli.py'
+      - 'schemas/examples/user-policy.examples.json'
+      - 'docs/results/M3_2E_TSE_POLICY_SCREENING_V01.md'
+      - 'docs/results/M3_2E_TSE_POLICY_SCREENING_MANIFEST_V01.json'
+      - '.github/workflows/tse-policy-screening.yml'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - name: Run Issue 55 focused contracts
+        run: >-
+          python -m pytest -q
+          tests/test_company_policy_screening.py
+          tests/test_tse_policy_screening.py
+          tests/test_tse_policy_screening_cli.py
+      - name: Verify operator CLI is local-input only
+        run: python scripts/run_tse_policy_screening.py --help >/dev/null
