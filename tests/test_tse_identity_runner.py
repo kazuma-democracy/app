@@ -1,6 +1,8 @@
 import csv
 import io
 import json
+import subprocess
+import sys
 import zipfile
 
 from scripts import run_real_identity_pilot
@@ -175,3 +177,25 @@ def test_local_tse_identity_runner_uses_local_snapshots_and_publishes_manifest_o
     assert "entities" not in public
     assert "Local Universe Co" not in public_text
     assert "1001" not in public_text
+
+
+def test_operator_cli_requires_local_source_metadata_arguments():
+    result = subprocess.run(
+        [sys.executable, "scripts/run_tse_identity_spine.py", "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    for token in (
+        "--code-commit",
+        "--retrieved-at",
+        "--edinet-snapshot",
+        "--nta-snapshot",
+        "--gleif-snapshot",
+        "--edinet-url",
+        "--nta-url",
+        "--gleif-url",
+    ):
+        assert token in result.stdout
