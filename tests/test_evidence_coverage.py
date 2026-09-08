@@ -87,6 +87,19 @@ def test_source_level_unresolved_identity_takes_precedence_over_no_match():
     assert result["rows"][0]["state"] == "unresolved_identity"
 
 
+def test_linked_observation_remains_observed_for_source_with_other_unresolved_identity_rows():
+    _, build, _ = coverage_api()
+    result = build(
+        entities=[entity("e1")],
+        sources=["integrated-a"],
+        integrated_sources={"integrated-a"},
+        observations=[{"source_id": "integrated-a", "entity_id": "e1"}],
+        unknown_sources=set(),
+        unresolved_sources={"integrated-a"},
+    )
+    assert result["rows"][0]["state"] == "observed"
+
+
 def test_source_unknown_takes_precedence_over_no_match():
     _, build, _ = coverage_api()
     result = build(
