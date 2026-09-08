@@ -51,6 +51,18 @@ def _build_fixture_universe(path: Path) -> dict:
     )
 
 
+def _semantic_projection(payload: dict) -> list[dict[str, str]]:
+    return [
+        {
+            "entity_id": row["entity_id"],
+            "security_code": row["security_code"],
+            "canonical_name": row["canonical_name"],
+            "market_segment": row["market_segment"],
+        }
+        for row in payload["entities"]
+    ]
+
+
 def test_domestic_filter_excludes_etf_and_pro_market(tmp_path):
     fixture = tmp_path / "data_j.csv"
     _write_fixture(fixture)
@@ -89,6 +101,15 @@ def test_build_universe_filters_and_emits_non_row_manifest(tmp_path):
         "Standard",
         "Growth",
     ]
+    source = payload["entities"][0]["identifiers"][0]["source"]
+    assert source == {
+        "source": "JPX",
+        "source_key": "listed.csv",
+        "snapshot": "2026-08-31",
+        "url": "https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
+        "retrieved_at": "2026-09-08T00:00:00Z",
+        "adapter_version": "0.4",
+    }
     manifest = payload["manifest"]
     assert manifest["rights_mode"] == "local_generation_only"
     assert manifest["market_counts"] == {"Prime": 1, "Standard": 1, "Growth": 1}
@@ -123,9 +144,32 @@ def test_universe_semantic_hash_is_order_independent(tmp_path):
     one = jpx_snapshot.build_universe(first, **kwargs)
     two = jpx_snapshot.build_universe(second, **kwargs)
 
-    assert one["entities"] == two["entities"]
+    assert _semantic_projection(one) == _semantic_projection(two)
     assert one["manifest"]["semantic_payload_sha256"] == two["manifest"]["semantic_payload_sha256"]
     assert one["manifest"]["source_sha256"] != two["manifest"]["source_sha256"]
+
+
+def test_universe_semantic_hash_ignores_local_provenance_metadata(tmp_path):
+    first = tmp_path / "first.csv"
+    second = tmp_path / "second.csv"
+    _write_universe_fixture(first)
+    second.write_bytes(first.read_bytes())
+    one = jpx_snapshot.build_universe(
+        first,
+        snapshot="2026-08-31",
+        source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
+        retrieved_at="2026-09-08T00:00:00Z",
+    )
+    two = jpx_snapshot.build_universe(
+        second,
+        snapshot="2026-08-31",
+        source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
+        retrieved_at="2026-09-08T01:00:00Z",
+    )
+
+    assert _semantic_projection(one) == _semantic_projection(two)
+    assert one["manifest"]["source_sha256"] == two["manifest"]["source_sha256"]
+    assert one["manifest"]["semantic_payload_sha256"] == two["manifest"]["semantic_payload_sha256"]
 
 
 def test_build_universe_rejects_duplicate_security_codes(tmp_path):
