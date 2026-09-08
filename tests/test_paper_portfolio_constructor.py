@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import wa_commons.portfolio.constructor as constructor
 from wa_commons.portfolio.constructor import construct_paper_portfolio
 
 
@@ -104,4 +105,75 @@ def test_disputed_identity_fails_closed(default_config: dict) -> None:
     result = construct_paper_portfolio(rows, _provenance(), default_config)
 
     assert result["status"] == "INVALID_INPUT_DISPUTED_IDENTITY"
+    assert result["target_weights"] == []
+
+
+def test_preference_signals_deduplicate_by_rule_id(default_config: dict) -> None:
+    rows = _rows()
+    rows[0]["preference_signals"] = [
+        {"rule_id": "r1", "direction": "prefer", "weight": 0.4},
+        {"rule_id": "r1", "direction": "prefer", "weight": 0.4},
+        {"rule_id": "r2", "direction": "avoid", "weight": 0.1},
+    ]
+
+    result = construct_paper_portfolio(rows, _provenance(), default_config)
+    entry = next(
+        item
+        for item in result["manifest"]["preference_scores"]
+        if item["security_id"] == "TSE:1000"
+    )
+
+    assert entry["score"] == 0.3
+
+
+def test_strongest_soft_avoid_remains_nonzero(default_config: dict) -> None:
+    rows = _rows()
+    rows[0]["preference_signals"] = [
+        {"rule_id": "r1", "direction": "avoid", "weight": 1.0}
+    ]
+
+    result = construct_paper_portfolio(rows, _provenance(), default_config)
+    weight = next(
+        Decimal(item["target_weight"])
+        for item in result["target_weights"]
+        if item["security_id"] == "TSE:1000"
+    )
+
+    assert weight > 0
+
+
+def test_all_excluded_fails_closed(default_config: dict) -> None:
+    rows = _rows()
+    for row in rows:
+        row["decision"] = "EXCLUDE"
+
+    result = construct_paper_portfolio(rows, _provenance(), default_config)
+
+    assert result["status"] == "INFEASIBLE_ALL_EXCLUDED"
+    assert result["target_weights"] == []
+
+
+def test_too_few_eligible_for_cap_fails_closed(default_config: dict) -> None:
+    rows = _rows()
+    for row in rows[9:]:
+        row["decision"] = "EXCLUDE"
+
+    result = construct_paper_portfolio(rows, _provenance(), default_config)
+
+    assert result["status"] == "INFEASIBLE_DIVERSIFICATION_CAP"
+    assert result["target_weights"] == []
+
+
+def test_non_optimal_solver_status_emits_no_portfolio(
+    default_config: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        constructor,
+        "_solve_weights",
+        lambda *args, **kwargs: ("optimal_inaccurate", None, {}),
+    )
+
+    result = constructor.construct_paper_portfolio(_rows(), _provenance(), default_config)
+
+    assert result["status"] == "SOLVER_FAILURE"
     assert result["target_weights"] == []
