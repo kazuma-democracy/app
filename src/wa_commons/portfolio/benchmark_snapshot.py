@@ -178,3 +178,97 @@ def build_topix_snapshot(
     }
     manifest["semantic_snapshot_sha256"] = _canonical_sha256({"manifest": manifest, "rows": output_rows})
     return {"manifest": manifest, "rows": output_rows}
+
+
+def _canonical_security_index(identity: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    index: dict[str, Mapping[str, Any]] = {}
+    for entity in identity.get("entities", []):
+        values = {
+            str(identifier.get("value", "")).strip().upper()
+            for identifier in entity.get("identifiers", [])
+            if str(identifier.get("scheme", "")).strip() == "JPX_SECURITY_CODE"
+            and str(identifier.get("value", "")).strip()
+        }
+        if len(values) > 1:
+            raise ValueError("canonical entity has multiple JPX_SECURITY_CODE identifiers")
+        if not values:
+            continue
+        code = next(iter(values))
+        previous = index.get(code)
+        if previous is not None and previous.get("entity_id") != entity.get("entity_id"):
+            raise ValueError("duplicate canonical JPX_SECURITY_CODE")
+        index[code] = entity
+    return index
+
+
+def _mapping_bucket(reason: str) -> str:
+    return {
+        "exact_jpx_security_code": "mapped",
+        "canonical_identity_unresolved": "unresolved_identity",
+        "canonical_identity_disputed": "disputed",
+        "out_of_canonical_universe": "out_of_canonical_universe",
+    }[reason]
+
+
+def map_topix_snapshot(
+    snapshot: Mapping[str, Any],
+    identity: Mapping[str, Any],
+) -> dict[str, Any]:
+    identity_sha = str(identity.get("manifest", {}).get("semantic_identity_sha256", "")).strip()
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", identity_sha):
+        raise ValueError("identity semantic SHA-256 is missing or invalid")
+    index = _canonical_security_index(identity)
+    mapped_rows: list[dict[str, Any]] = []
+
+    for raw in snapshot.get("rows", []):
+        row = dict(raw)
+        code = str(row.get("security_code", "")).strip().upper()
+        entity = index.get(code)
+        if entity is None:
+            state, reason = "unmapped", "out_of_canonical_universe"
+            entity_id, review_state = None, None
+        else:
+            review_state = str(entity.get("review_state", "")).strip().upper()
+            entity_id = str(entity.get("entity_id", "")).strip() or None
+            if review_state == "CONFIRMED":
+                state, reason = "mapped", "exact_jpx_security_code"
+            elif review_state == "UNRESOLVED":
+                state, reason = "unmapped", "canonical_identity_unresolved"
+            elif review_state == "DISPUTED":
+                state, reason = "disputed", "canonical_identity_disputed"
+            else:
+                raise ValueError(f"unsupported canonical identity review_state: {review_state}")
+        mapped_rows.append({
+            **row,
+            "mapping_state": state,
+            "mapping_reason": reason,
+            "canonical_entity_id": entity_id,
+            "canonical_review_state": review_state,
+        })
+
+    mapped_rows.sort(key=lambda row: row["security_id"])
+    decimals = 12
+    summary: dict[str, dict[str, Any]] = {}
+    for bucket in ("mapped", "unresolved_identity", "disputed", "out_of_canonical_universe"):
+        selected = [row for row in mapped_rows if _mapping_bucket(row["mapping_reason"]) == bucket]
+        weight = sum(Decimal(row["benchmark_weight"]) for row in selected)
+        summary[bucket] = {
+            "count": len(selected),
+            "benchmark_weight": f"{weight:.{decimals}f}",
+        }
+    total_weight = sum(Decimal(bucket["benchmark_weight"]) for bucket in summary.values())
+    if total_weight != Decimal("1.000000000000"):
+        raise ValueError("mapped TOPIX benchmark weights do not reconcile to 1.0")
+
+    manifest = {
+        **dict(snapshot.get("manifest", {})),
+        "identity_semantic_sha256": identity_sha.lower(),
+        "mapping_summary": summary,
+    }
+    manifest["semantic_mapping_sha256"] = _canonical_sha256({
+        "snapshot_semantic_sha256": manifest.get("semantic_snapshot_sha256"),
+        "identity_semantic_sha256": manifest["identity_semantic_sha256"],
+        "mapping_summary": summary,
+        "rows": mapped_rows,
+    })
+    return {"manifest": manifest, "rows": mapped_rows}
