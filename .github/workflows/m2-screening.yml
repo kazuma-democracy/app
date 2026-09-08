@@ -14,6 +14,7 @@ on:
       - 'tests/test_company_policy_screening.py'
       - 'tests/test_company_policy_uncertainty.py'
       - 'tests/test_m2_2b_screening_snapshot.py'
+      - 'docs/results/M2_2B_SCREENING_V01.md'
       - '.github/workflows/m2-screening.yml'
   workflow_dispatch:
 
@@ -42,13 +43,14 @@ jobs:
         run: python scripts/run_m2_2a_coverage.py --output artifacts/m2-coverage/coverage.json
       - name: Generate company policy screening artifact
         run: python scripts/run_m2_2b_screening.py --output artifacts/m2-screening/screening.json
-      - name: Verify bounded current-snapshot result
+      - name: Verify pinned current-snapshot result
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
 
           artifact = json.loads(Path('artifacts/m2-screening/screening.json').read_text(encoding='utf-8'))
+          assert artifact['screening_sha256'] == '7bdfec9c733aa84940e23a8d93153b27f604ee0efc799e6cd9edf628d073971a'
           assert artifact['evidence_graph_sha256'] == '0a4f9ed031eaa534e116dca9c441e08054be49047b4404832a14a48094cf2e15'
           assert artifact['coverage_matrix_sha256'] == '41361d47e118168c1f393838d3083861d9eed7adc13f6e66d997f3e320f0e403'
           assert artifact['identity_bridge_sha256'] == 'f12fb5bddd8b8a3f99fa47cc6f7da54b1112657d5b9b8a56260690c5ecd1e10e'
