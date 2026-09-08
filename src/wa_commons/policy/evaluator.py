@@ -89,7 +89,10 @@ def _matches_scope(rule: dict[str, Any], claim: dict[str, Any]) -> bool:
 
 def evaluate_claim(policy: dict[str, Any], claim: dict[str, Any]) -> PolicyResult:
     """Evaluate one factual claim without mutating evidence or granting action authority."""
-    status = claim["adjudication"]["status"].lower()
+    raw_status = claim["adjudication"]["status"]
+    if not isinstance(raw_status, str):
+        raise ValueError(f"unsupported factual status: {raw_status}")
+    status = raw_status.lower()
     if status not in ALLOWED_FACTUAL_STATUSES:
         raise ValueError(f"unsupported factual status: {status}")
 
