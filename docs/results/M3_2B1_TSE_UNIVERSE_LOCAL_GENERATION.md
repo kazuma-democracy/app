@@ -22,7 +22,7 @@ The operator is responsible for obtaining and retaining the applicable JPX sourc
 - `スタンダード（内国株式）` → `Standard`
 - `グロース（内国株式）` → `Growth`
 
-ETF/ETN, REIT, TOKYO PRO Market, foreign stocks, other market/product rows, and invalid in-scope rows are excluded and counted separately. Duplicate normalized security codes fail closed instead of being silently retained or deduplicated.
+ETF/ETN, REIT, TOKYO PRO Market, foreign stocks and other out-of-scope market/product rows are excluded and counted separately. An in-scope row missing the required security code or listed name is not silently dropped: the run fails closed so the source row remains available for operator review. A source-row date that does not match the pinned snapshot also fails closed. Duplicate normalized security codes fail closed instead of being silently retained or deduplicated.
 
 The local row-level output is canonically ordered by normalized JPX security code. Each row preserves the existing `EntityRecord` identity/provenance envelope produced by `from_jpx_row()`, including the `JPX_SECURITY_CODE` identifier and its `SourceRef` (`source_key`, snapshot, source URL, retrieval timestamp, and adapter version). It also exposes two deterministic convenience fields needed by the #53 handoff:
 
@@ -33,7 +33,7 @@ The existing envelope continues to carry the WA canonical `entity_id`, JPX liste
 
 ## Public-safe manifest
 
-Each local run also emits a separate manifest containing only non-row-level reproducibility metadata:
+Each successful local run also emits a separate manifest containing only non-row-level reproducibility metadata:
 
 - publisher/source ID and official source locator;
 - operator-supplied snapshot/effective date and retrieval timestamp;
@@ -65,7 +65,9 @@ wa-commons build-jpx-universe <JPX_SNAPSHOT_FILE> <LOCAL_UNIVERSE_JSON> <PUBLIC_
 CI uses only synthetic/minimal fixtures. It does not fetch JPX and does not publish JPX-derived rows. Fixture coverage proves:
 
 - exact Prime / Standard / Growth inclusion;
-- ETF/ETN, REIT, PRO Market, foreign/other and invalid-row exclusion accounting;
+- ETF/ETN, REIT, PRO Market and foreign/other exclusion accounting;
+- pinned snapshot/source-row date consistency with fail-closed mismatch handling;
+- fail-closed handling of in-scope rows missing required identity fields;
 - canonical security-code ordering;
 - preservation of the existing JPX identifier `SourceRef` in the local row-level envelope;
 - input-order-independent semantic payload hash;
