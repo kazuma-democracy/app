@@ -140,6 +140,16 @@ def build_tse_identity_spine(
             f"universe manifest entity_count {expected_entity_count} does not match {len(raw_entities)} entities"
         )
 
+    seen_jpx_codes: set[str] = set()
+    for row in raw_entities:
+        for identifier in row.get("identifiers", []):
+            if str(identifier.get("scheme", "")) != "JPX_SECURITY_CODE":
+                continue
+            code = str(identifier.get("value", "")).strip()
+            if code in seen_jpx_codes:
+                raise ValueError(f"duplicate JPX_SECURITY_CODE: {code}")
+            seen_jpx_codes.add(code)
+
     entities = [_entity_from_dict(row) for row in raw_entities]
     nta_rows = list(nta_rows)
     nta_by_corporate = build_nta_corporate_index(nta_rows)
