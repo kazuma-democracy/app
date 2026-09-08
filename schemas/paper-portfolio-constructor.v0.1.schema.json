@@ -49,7 +49,7 @@
       "additionalProperties": false,
       "required": ["unmapped_behavior", "disputed_behavior"],
       "properties": {
-        "unmapped_behavior": {"const": "retain_unscreened_at_benchmark_reference"},
+        "unmapped_behavior": {"const": "retain_unscreened_no_tilt"},
         "disputed_behavior": {"const": "fail_closed"}
       }
     },
