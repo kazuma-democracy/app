@@ -111,6 +111,7 @@ def test_build_universe_filters_and_emits_non_row_manifest(tmp_path):
     }
     manifest = payload["manifest"]
     assert manifest["rights_mode"] == "local_generation_only"
+    assert manifest["normalization_rule_version"] == "tse-universe-normalization-v0.1"
     assert manifest["market_counts"] == {"Prime": 1, "Standard": 1, "Growth": 1}
     assert manifest["entity_count"] == 3
     assert manifest["exclusion_counts"] == {
