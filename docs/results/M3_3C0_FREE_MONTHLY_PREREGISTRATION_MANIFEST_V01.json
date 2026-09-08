@@ -1,0 +1,83 @@
+{
+  "artifact_version": "m3.3c0-free-monthly-preregistration-manifest-v0.1",
+  "issue": 78,
+  "config_version": "m3.3c0-free-monthly-prereg-v0.1",
+  "config_sha256": "cac15a147f71f55f88b2e8f079bd230db3bd5962d7e558fddb060cd65dde9b87",
+  "benchmark": {
+    "id": "JPX:TOPIX_TOTAL_RETURN:6000",
+    "effective_date": "2026-07-31",
+    "semantic_mapping_sha256": "1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409",
+    "period": "2026-10"
+  },
+  "evaluation": {
+    "portfolio_definition_cutoff": "2026-09-29_CLOSE",
+    "execution_start_valuation": "2026-09-30_CLOSE",
+    "start": "2026-10-01",
+    "end": "2026-10-30",
+    "rebalance_policy": "NONE_AFTER_INITIAL_ALLOCATION"
+  },
+  "source_contract": {
+    "cost_model": "ZERO_PURCHASE_ZERO_SUBSCRIPTION",
+    "acquisition_mode": "MANUAL_MONTHLY_DOWNLOAD_THEN_LOCAL_HASH",
+    "raw_storage": "LOCAL_ONLY",
+    "raw_source_publication": "PROHIBITED_BY_PROJECT_POLICY",
+    "performance_publication_rights": "SEPARATE_CHECK_REQUIRED",
+    "roles": {
+      "start_price": {
+        "source": "TSE_MONTHLY_STOCK_PRICE_TABLE",
+        "period": "2026-09",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+        "row_scope": "HELD_SECURITIES_ONLY"
+      },
+      "end_price": {
+        "source": "TSE_MONTHLY_STOCK_PRICE_TABLE",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+        "row_scope": "HELD_SECURITIES_ONLY"
+      },
+      "benchmark": {
+        "source": "JPX_DIVIDEND_INCLUDED_INDEX_MONTHLY_ROI",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/indices/related/ratio/"
+      },
+      "action_detector": {
+        "source": "TSE_MONTHLY_STATISTICS_REPORT",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/monthly/",
+        "ex_rights_locator": "https://www.jpx.co.jp/listing/others/ex-rights/index.html",
+        "absence_semantics": "NOT_PROOF_OF_NO_CASH_DIVIDEND"
+      },
+      "held_security_primary_evidence": {
+        "scope": "HELD_SECURITIES_ONLY",
+        "priority": [
+          "ISSUER_IR",
+          "TSE_LISTED_COMPANY_SEARCH_OR_TDNET",
+          "EDINET",
+          "JPX_RIGHTS_LISTING_INFO"
+        ],
+        "tdnet_overview": "https://www.jpx.co.jp/equities/listing/disclosure/tdnet/index.html",
+        "tdnet_public": "https://www.jpx.co.jp/listing/disclosure/01.html",
+        "edinet_api": "https://disclosure2dl.edinet-fsa.go.jp/guide/static/disclosure/WEEK0060.html"
+      }
+    }
+  },
+  "return_basis": "MONTHLY_GROSS_TOTAL_WEALTH_RETURN_JPY",
+  "terminal_state_schema": "M3_3C0_FREE_MONTHLY_TERMINAL_STATES_V01",
+  "terminal_states": {
+    "held_security": [
+      "RETURN_OK_NO_ACTION",
+      "RETURN_OK_ACTION_EXPLAINED",
+      "BLOCK_START_PRICE",
+      "BLOCK_END_PRICE",
+      "BLOCK_DIVIDEND_EVIDENCE",
+      "BLOCK_CORPORATE_ACTION",
+      "BLOCK_IDENTITY"
+    ],
+    "snapshot": [
+      "BLOCK_SOURCE_UNAVAILABLE",
+      "BLOCK_BENCHMARK_MONTHLY_RETURN",
+      "BLOCK_RIGHTS_PUBLICATION"
+    ]
+  },
+  "selected_period_rows_ingested": false
+}
