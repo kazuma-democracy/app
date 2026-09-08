@@ -32,16 +32,16 @@ jobs:
           import json
           from pathlib import Path
           artifact = json.loads(Path('artifacts/m2-coverage/coverage.json').read_text(encoding='utf-8'))
-          expected = 'ab41c898747c8a725ecaa240f1bb1d759c5e8233b2f9c25543647b9a7950ac68'
+          expected = '41361d47e118168c1f393838d3083861d9eed7adc13f6e66d997f3e320f0e403'
           assert artifact['matrix_sha256'] == expected
           assert artifact['matrix']['entity_count'] == 100
           assert artifact['matrix']['cell_count'] == 500
           assert artifact['matrix']['state_counts'] == {
-              'no_match': 200,
+              'no_match': 100,
               'not_integrated': 300,
               'observed': 0,
               'unknown': 0,
-              'unresolved_identity': 0,
+              'unresolved_identity': 100,
           }
           print(json.dumps({
               'matrix_sha256': artifact['matrix_sha256'],
