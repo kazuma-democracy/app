@@ -13,38 +13,52 @@ def report_api():
     return render_screener_report
 
 
+def identity(entity_id: str, name: str, code: str, corporate_number: str) -> dict:
+    return {
+        "entity_id": entity_id,
+        "canonical_name": name,
+        "identifiers": [
+            {"scheme": "JPX_SECURITY_CODE", "value": code},
+            {"scheme": "JP_CORPORATE_NUMBER", "value": corporate_number},
+        ],
+    }
+
+
+def policy(profile_id: str, title: str, description: str) -> dict:
+    return {
+        "profile_id": profile_id,
+        "profile_version": "1",
+        "title": title,
+        "description": description,
+    }
+
+
+def coverage(mod_state: str) -> dict[str, str]:
+    return {
+        "jp-mod-procurement": mod_state,
+        "jp-political-finance": "unresolved_identity",
+        "sipri-arms-industry": "not_integrated",
+        "us-uflpa-entity-list": "not_integrated",
+        "oecd-ncp-cases": "not_integrated",
+    }
+
+
 def fixture_inputs():
     identities = [
-        {
-            "entity_id": "wa:org:jp:tse:1301",
-            "canonical_name": "極洋",
-            "identifiers": [
-                {"scheme": "JPX_SECURITY_CODE", "value": "1301"},
-                {"scheme": "JP_CORPORATE_NUMBER", "value": "1010401033225"},
-            ],
-        },
-        {
-            "entity_id": "wa:org:jp:tse:1332",
-            "canonical_name": "ニッスイ",
-            "identifiers": [
-                {"scheme": "JPX_SECURITY_CODE", "value": "1332"},
-                {"scheme": "JP_CORPORATE_NUMBER", "value": "1010001016866"},
-            ],
-        },
+        identity("wa:org:jp:tse:1301", "極洋", "1301", "1010401033225"),
+        identity("wa:org:jp:tse:1332", "ニッスイ", "1332", "1010001016866"),
     ]
     policies = [
-        {
-            "profile_id": "example:strict-military-avoidance",
-            "profile_version": "1",
-            "title": "Strict military-specific activity avoidance",
-            "description": "Exclude confirmed military-specific activity.",
-        },
-        {
-            "profile_id": "example:transparency-first",
-            "profile_version": "1",
-            "title": "Transparency-first informational profile",
-            "description": "Surface military-contract evidence for review without excluding it.",
-        },
+        policy(
+            "example:strict-military-avoidance",
+            "Strict military-specific activity avoidance",
+            "Exclude confirmed military-specific activity.",
+        ),
+        policy(
+            "example:transparency-first",
+            "Transparency-first informational profile",
+            "Surface military-contract evidence for review without excluding it.",
+        ),
     ]
     claim = {
         "claim_id": "wc:claim:test-1",
@@ -87,21 +101,30 @@ def fixture_inputs():
         "correction_history": [],
         "policy_context": None,
     }
-    evidence_graph = {"claims": [claim]}
-    coverage_states = {
-        "jp-mod-procurement": "observed",
-        "jp-political-finance": "unresolved_identity",
-        "sipri-arms-industry": "not_integrated",
-        "us-uflpa-entity-list": "not_integrated",
-        "oecd-ncp-cases": "not_integrated",
+    graph = {"claims": [claim]}
+
+    strict_id = policies[0]["profile_id"]
+    transparent_id = policies[1]["profile_id"]
+    strict_claim_result = {
+        "claim_id": "wc:claim:test-1",
+        "adjudication_status": "confirmed",
+        "decision": "EXCLUDE",
+        "rule_refs": ["exclude-confirmed-military-specific"],
+        "uncertainty_ref": None,
+        "source_ids": ["jp-mod-procurement"],
+        "preference_signals": [],
+        "reasoning": "Matched exclusion rule.",
     }
-    none_coverage = {
-        "jp-mod-procurement": "no_match",
-        "jp-political-finance": "unresolved_identity",
-        "sipri-arms-industry": "not_integrated",
-        "us-uflpa-entity-list": "not_integrated",
-        "oecd-ncp-cases": "not_integrated",
+    transparent_claim_result = {
+        **strict_claim_result,
+        "decision": "WATCH",
+        "rule_refs": ["watch-military-evidence"],
+        "reasoning": "Matched watch rule.",
     }
+    none_reason = (
+        "No canonical Evidence Graph claim is linked to this entity in this snapshot; "
+        "the company-level decision is NONE. NONE is not PASS, clean, or safe."
+    )
     screening = {
         "artifact_version": "m2-2b-screening-artifact-v0.1",
         "screening_sha256": "screening-fixture-sha",
@@ -112,87 +135,65 @@ def fixture_inputs():
         "profile_count": 2,
         "view_count": 4,
         "policies": [
-            {"profile_id": policies[0]["profile_id"], "profile_version": "1", "policy_sha256": "strict-sha"},
-            {"profile_id": policies[1]["profile_id"], "profile_version": "1", "policy_sha256": "transparent-sha"},
+            {"profile_id": strict_id, "profile_version": "1", "policy_sha256": "strict-sha"},
+            {"profile_id": transparent_id, "profile_version": "1", "policy_sha256": "transparent-sha"},
         ],
         "policy_comparison": [
             {
-                "left_profile_id": policies[0]["profile_id"],
-                "right_profile_id": policies[1]["profile_id"],
+                "left_profile_id": strict_id,
+                "right_profile_id": transparent_id,
                 "same_evidence_snapshot": True,
                 "decision_difference_count": 1,
             }
         ],
         "decision_counts_by_profile": {
-            policies[0]["profile_id"]: {"EXCLUDE": 1, "WATCH": 0, "NONE": 1},
-            policies[1]["profile_id"]: {"EXCLUDE": 0, "WATCH": 1, "NONE": 1},
+            strict_id: {"EXCLUDE": 1, "WATCH": 0, "NONE": 1},
+            transparent_id: {"EXCLUDE": 0, "WATCH": 1, "NONE": 1},
         },
         "views": [
             {
                 "entity_id": "wa:org:jp:tse:1301",
-                "profile_id": policies[0]["profile_id"],
+                "profile_id": strict_id,
                 "profile_version": "1",
                 "policy_sha256": "strict-sha",
                 "decision": "EXCLUDE",
                 "reasoning": "Company decision EXCLUDE is the highest-priority linked claim result.",
-                "coverage_states": coverage_states,
-                "claim_results": [
-                    {
-                        "claim_id": "wc:claim:test-1",
-                        "adjudication_status": "confirmed",
-                        "decision": "EXCLUDE",
-                        "rule_refs": ["exclude-confirmed-military-specific"],
-                        "uncertainty_ref": None,
-                        "source_ids": ["jp-mod-procurement"],
-                        "preference_signals": [],
-                        "reasoning": "Matched exclusion rule.",
-                    }
-                ],
+                "coverage_states": coverage("observed"),
+                "claim_results": [strict_claim_result],
             },
             {
                 "entity_id": "wa:org:jp:tse:1301",
-                "profile_id": policies[1]["profile_id"],
+                "profile_id": transparent_id,
                 "profile_version": "1",
                 "policy_sha256": "transparent-sha",
                 "decision": "WATCH",
                 "reasoning": "Company decision WATCH is the highest-priority linked claim result.",
-                "coverage_states": coverage_states,
-                "claim_results": [
-                    {
-                        "claim_id": "wc:claim:test-1",
-                        "adjudication_status": "confirmed",
-                        "decision": "WATCH",
-                        "rule_refs": ["watch-military-evidence"],
-                        "uncertainty_ref": None,
-                        "source_ids": ["jp-mod-procurement"],
-                        "preference_signals": [],
-                        "reasoning": "Matched watch rule.",
-                    }
-                ],
+                "coverage_states": coverage("observed"),
+                "claim_results": [transparent_claim_result],
             },
             {
                 "entity_id": "wa:org:jp:tse:1332",
-                "profile_id": policies[0]["profile_id"],
+                "profile_id": strict_id,
                 "profile_version": "1",
                 "policy_sha256": "strict-sha",
                 "decision": "NONE",
-                "reasoning": "No canonical Evidence Graph claim is linked to this entity in this snapshot; the company-level decision is NONE. NONE is not PASS, clean, or safe.",
-                "coverage_states": none_coverage,
+                "reasoning": none_reason,
+                "coverage_states": coverage("no_match"),
                 "claim_results": [],
             },
             {
                 "entity_id": "wa:org:jp:tse:1332",
-                "profile_id": policies[1]["profile_id"],
+                "profile_id": transparent_id,
                 "profile_version": "1",
                 "policy_sha256": "transparent-sha",
                 "decision": "NONE",
-                "reasoning": "No canonical Evidence Graph claim is linked to this entity in this snapshot; the company-level decision is NONE. NONE is not PASS, clean, or safe.",
-                "coverage_states": none_coverage,
+                "reasoning": none_reason,
+                "coverage_states": coverage("no_match"),
                 "claim_results": [],
             },
         ],
     }
-    return screening, evidence_graph, identities, policies
+    return screening, graph, identities, policies
 
 
 def render():
@@ -212,7 +213,11 @@ def test_report_is_non_developer_readable_and_lists_every_company():
     assert "Strict military-specific activity avoidance" in text
     assert "極洋" in text and "1301" in text
     assert "ニッスイ" in text and "1332" in text
-    assert text.count("## Company ") == 2
+    detail_headings = [
+        line for line in text.splitlines()
+        if line.startswith("## Company ") and not line.startswith("## Company index")
+    ]
+    assert len(detail_headings) == 2
 
 
 def test_none_is_explicitly_not_pass_and_coverage_states_remain_visible():
@@ -222,9 +227,11 @@ def test_none_is_explicitly_not_pass_and_coverage_states_remain_visible():
     assert "jp-political-finance: `unresolved_identity`" in text
     assert "sipri-arms-industry: `not_integrated`" in text
     lowered = text.lower()
-    assert "peace score" not in lowered
+    assert "no moral score, peace score, safety score" in lowered
+    assert "peace score:" not in lowered
     assert "moral score:" not in lowered
-    assert "safety score" not in lowered
+    assert "safety score:" not in lowered
+    assert "score =" not in lowered
 
 
 def test_mapped_claim_renders_rule_evidence_card_and_challenge_path():
@@ -238,8 +245,7 @@ def test_mapped_claim_renders_rule_evidence_card_and_challenge_path():
 
 
 def test_no_claim_company_still_has_entity_scoped_challenge_path():
-    text = render()
-    assert "cite entity_id=`wa:org:jp:tse:1332`" in text
+    assert "cite entity_id=`wa:org:jp:tse:1332`" in render()
 
 
 def test_profile_comparison_uses_the_same_snapshot():
