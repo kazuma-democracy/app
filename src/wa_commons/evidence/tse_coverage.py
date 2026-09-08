@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+import json
+from pathlib import Path
 from typing import Iterable, Mapping
 
 from .coverage import build_coverage_matrix, canonical_coverage_sha256
@@ -161,3 +163,31 @@ def build_tse_coverage(
         "source_catalog": catalog,
         "matrix": matrix,
     }
+
+
+def write_tse_coverage(
+    payload: Mapping[str, object],
+    local_output: str | Path,
+    public_output: str | Path,
+) -> None:
+    """Write the full row-level matrix locally and only aggregate metadata publicly."""
+    local_path = Path(local_output)
+    public_path = Path(public_output)
+    if local_path.resolve() == public_path.resolve():
+        raise ValueError("local and public outputs must differ")
+
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    public_path.parent.mkdir(parents=True, exist_ok=True)
+
+    local_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    public_payload = {
+        "manifest": payload["manifest"],
+        "source_catalog": payload["source_catalog"],
+    }
+    public_path.write_text(
+        json.dumps(public_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
