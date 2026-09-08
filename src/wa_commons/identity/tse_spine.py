@@ -165,6 +165,8 @@ def build_tse_identity_spine(
 def write_tse_identity_spine(payload: Mapping[str, object], local_path: str | Path, public_path: str | Path) -> None:
     local = Path(local_path)
     public = Path(public_path)
+    if local.resolve() == public.resolve():
+        raise ValueError("local and public outputs must differ")
     local.parent.mkdir(parents=True, exist_ok=True)
     public.parent.mkdir(parents=True, exist_ok=True)
     local.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
