@@ -13,6 +13,8 @@ import numpy as np
 
 EXPECTED_CONSTRUCTOR_ID = "benchmark-l2-projection"
 EXPECTED_CONSTRUCTOR_VERSION = "0.1"
+ALLOWED_MAPPING_STATES = {"mapped", "unmapped", "disputed"}
+ALLOWED_DECISIONS = {"EXCLUDE", "WATCH", "NONE"}
 
 
 def load_constructor_config(path: str | Path) -> dict[str, Any]:
@@ -58,6 +60,43 @@ def _validate_benchmark(ordered: list[dict[str, Any]], config: dict[str, Any]) -
     return weights
 
 
+def _classify_rows(
+    ordered: list[dict[str, Any]],
+) -> tuple[set[int], list[int], bool]:
+    excluded: set[int] = set()
+    unmapped: list[int] = []
+    disputed = False
+
+    for index, row in enumerate(ordered):
+        mapping_state = row.get("mapping_state")
+        if mapping_state not in ALLOWED_MAPPING_STATES:
+            raise ValueError(f"unsupported mapping_state: {mapping_state}")
+        if mapping_state == "disputed":
+            disputed = True
+            continue
+        if mapping_state == "unmapped":
+            unmapped.append(index)
+            continue
+
+        decision = row.get("decision")
+        if decision not in ALLOWED_DECISIONS:
+            raise ValueError(f"mapped row lacks valid decision: {row['security_id']}")
+        if decision == "EXCLUDE":
+            excluded.add(index)
+
+    return excluded, unmapped, disputed
+
+
+def _build_reference(benchmark: np.ndarray, excluded: set[int]) -> np.ndarray:
+    reference = benchmark.copy()
+    for index in excluded:
+        reference[index] = 0.0
+    total = float(reference.sum())
+    if total <= 0:
+        return reference
+    return reference / total
+
+
 def _solver_options(config: dict[str, Any]) -> dict[str, Any]:
     solver = config["solver"]
     return {
@@ -72,17 +111,18 @@ def _solver_options(config: dict[str, Any]) -> dict[str, Any]:
 def _solve_weights(
     reference: np.ndarray,
     config: dict[str, Any],
+    excluded: set[int] | None = None,
 ) -> tuple[str, np.ndarray | None, dict[str, Any]]:
+    excluded = excluded or set()
     weights = cp.Variable(len(reference))
     max_weight = float(config["constraints"]["max_single_name_weight"])
-    problem = cp.Problem(
-        cp.Minimize(cp.sum_squares(weights - reference)),
-        [
-            cp.sum(weights) == 1,
-            weights >= 0,
-            weights <= max_weight,
-        ],
-    )
+    constraints = [
+        cp.sum(weights) == 1,
+        weights >= 0,
+        weights <= max_weight,
+    ]
+    constraints.extend(weights[index] == 0 for index in sorted(excluded))
+    problem = cp.Problem(cp.Minimize(cp.sum_squares(weights - reference)), constraints)
     problem.solve(
         solver=config["solver"]["name"],
         warm_start=bool(config["solver"]["warm_start"]),
@@ -98,7 +138,11 @@ def _solve_weights(
     return problem.status, np.asarray(weights.value, dtype=float), diagnostics
 
 
-def _validate_raw_solution(weights: np.ndarray, config: dict[str, Any]) -> None:
+def _validate_raw_solution(
+    weights: np.ndarray,
+    config: dict[str, Any],
+    excluded: set[int],
+) -> None:
     tolerance = float(config["numerical"]["output_invariant_tolerance"])
     cap = float(config["constraints"]["max_single_name_weight"])
     if not math.isclose(float(weights.sum()), 1.0, abs_tol=tolerance, rel_tol=0.0):
@@ -107,12 +151,15 @@ def _validate_raw_solution(weights: np.ndarray, config: dict[str, Any]) -> None:
         raise ValueError("solver emitted a negative weight")
     if float(weights.max()) > cap + tolerance:
         raise ValueError("solver exceeded max_single_name_weight")
+    if any(abs(float(weights[index])) > tolerance for index in excluded):
+        raise ValueError("solver emitted non-zero EXCLUDE weight")
 
 
 def _canonicalize_weights(
     security_ids: list[str],
     weights: np.ndarray,
     config: dict[str, Any],
+    excluded: set[int],
 ) -> list[str]:
     decimals = int(config["numerical"]["semantic_weight_decimals"])
     quantum = Decimal(1).scaleb(-decimals)
@@ -124,10 +171,13 @@ def _canonicalize_weights(
         Decimal(str(float(weight))).quantize(quantum, rounding=ROUND_HALF_EVEN)
         for weight in weights
     ]
+    for index in excluded:
+        canonical[index] = Decimal("0").quantize(quantum)
+
     residual = Decimal("1").quantize(quantum) - sum(canonical)
     if residual:
         candidates = sorted(
-            range(len(canonical)),
+            (index for index in range(len(canonical)) if index not in excluded),
             key=lambda index: (-canonical[index], security_ids[index]),
         )
         for index in candidates:
@@ -141,7 +191,25 @@ def _canonicalize_weights(
         raise ValueError("canonical weights do not sum to 1")
     if min(canonical) < 0 or max(canonical) > cap:
         raise ValueError("canonical weights violate bounds")
+    if any(canonical[index] != 0 for index in excluded):
+        raise ValueError("canonical EXCLUDE weight is non-zero")
     return [f"{value:.{decimals}f}" for value in canonical]
+
+
+def _format_weight(value: float, config: dict[str, Any]) -> str:
+    decimals = int(config["numerical"]["semantic_weight_decimals"])
+    quantum = Decimal(1).scaleb(-decimals)
+    return f"{Decimal(str(float(value))).quantize(quantum, rounding=ROUND_HALF_EVEN):.{decimals}f}"
+
+
+def _failure(status: str, *, solver_status: str | None = None) -> dict[str, Any]:
+    manifest: dict[str, Any] = {
+        "paper_only": True,
+        "real_money_authority": False,
+    }
+    if solver_status is not None:
+        manifest["solver_status"] = solver_status
+    return {"status": status, "target_weights": [], "manifest": manifest}
 
 
 def construct_paper_portfolio(
@@ -149,33 +217,30 @@ def construct_paper_portfolio(
     provenance: dict[str, Any],
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Construct the bounded v0.1 paper portfolio from benchmark weights.
-
-    The first TDD increment intentionally covers the no-policy case only. Policy,
-    identity and preference semantics are added by subsequent focused increments.
-    """
+    """Construct the bounded v0.1 paper portfolio from benchmark/policy rows."""
 
     _validate_config(config)
     ordered = _ordered_rows(rows)
     benchmark = _validate_benchmark(ordered, config)
-    status, raw_weights, diagnostics = _solve_weights(benchmark, config)
+    excluded, unmapped, disputed = _classify_rows(ordered)
+    if disputed:
+        return _failure("INVALID_INPUT_DISPUTED_IDENTITY")
+
+    reference = _build_reference(benchmark, excluded)
+    status, raw_weights, diagnostics = _solve_weights(reference, config, excluded)
     if status != cp.OPTIMAL or raw_weights is None:
-        return {
-            "status": "SOLVER_FAILURE",
-            "target_weights": [],
-            "manifest": {
-                "paper_only": True,
-                "real_money_authority": False,
-                "solver_status": status,
-            },
-        }
-    _validate_raw_solution(raw_weights, config)
+        return _failure("SOLVER_FAILURE", solver_status=status)
+
+    _validate_raw_solution(raw_weights, config, excluded)
     security_ids = [row["security_id"] for row in ordered]
-    canonical = _canonicalize_weights(security_ids, raw_weights, config)
+    canonical = _canonicalize_weights(security_ids, raw_weights, config, excluded)
     target_weights = [
         {"security_id": security_id, "target_weight": weight}
         for security_id, weight in zip(security_ids, canonical, strict=True)
     ]
+
+    excluded_weight = float(sum(benchmark[index] for index in excluded))
+    unscreened_weight = float(sum(benchmark[index] for index in unmapped))
     return {
         "status": "OPTIMAL",
         "target_weights": target_weights,
@@ -187,6 +252,9 @@ def construct_paper_portfolio(
             "solver_status": status,
             "solver_objective": diagnostics["objective_value"],
             "solver_iterations": diagnostics["iterations"],
+            "excluded_benchmark_weight": _format_weight(excluded_weight, config),
+            "unmapped_count": len(unmapped),
+            "unscreened_benchmark_weight": _format_weight(unscreened_weight, config),
             "provenance": dict(provenance),
         },
     }
