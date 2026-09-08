@@ -1,0 +1,111 @@
+{
+  "artifact_version": "m3.3c0-free-monthly-prereg-v0.1",
+  "issue": 78,
+  "timezone": "Asia/Tokyo",
+  "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+  "benchmark_effective_date": "2026-07-31",
+  "benchmark_semantic_mapping_sha256": "1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409",
+  "portfolio_definition_cutoff": "2026-09-29_CLOSE",
+  "execution_start_valuation": "2026-09-30_CLOSE",
+  "evaluation_start": "2026-10-01",
+  "evaluation_end": "2026-10-30",
+  "benchmark_period": "2026-10",
+  "return_basis": "MONTHLY_GROSS_TOTAL_WEALTH_RETURN_JPY",
+  "rebalance_policy": "NONE_AFTER_INITIAL_ALLOCATION",
+  "purchase_authorized": false,
+  "subscription_authorized": false,
+  "selected_period_rows_ingested": false,
+  "implementation_gate": "READY_FOR_ISSUE_56_AFTER_PREREG_VERIFICATION",
+  "source_contract": {
+    "cost_model": "ZERO_PURCHASE_ZERO_SUBSCRIPTION",
+    "acquisition_mode": "MANUAL_MONTHLY_DOWNLOAD_THEN_LOCAL_HASH",
+    "raw_source_publication": "PROHIBITED_BY_PROJECT_POLICY",
+    "raw_storage": "LOCAL_ONLY",
+    "whole_market_daily_store": false,
+    "automated_high_frequency_jpx_scraping": false,
+    "performance_publication_rights": "SEPARATE_CHECK_REQUIRED",
+    "roles": {
+      "start_price": {
+        "source": "TSE_MONTHLY_STOCK_PRICE_TABLE",
+        "period": "2026-09",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+        "row_scope": "HELD_SECURITIES_ONLY"
+      },
+      "end_price": {
+        "source": "TSE_MONTHLY_STOCK_PRICE_TABLE",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+        "row_scope": "HELD_SECURITIES_ONLY"
+      },
+      "benchmark": {
+        "source": "JPX_DIVIDEND_INCLUDED_INDEX_MONTHLY_ROI",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/indices/related/ratio/"
+      },
+      "action_detector": {
+        "source": "TSE_MONTHLY_STATISTICS_REPORT",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/monthly/",
+        "ex_rights_locator": "https://www.jpx.co.jp/listing/others/ex-rights/index.html",
+        "absence_semantics": "NOT_PROOF_OF_NO_CASH_DIVIDEND"
+      },
+      "held_security_primary_evidence": {
+        "scope": "HELD_SECURITIES_ONLY",
+        "priority": [
+          "ISSUER_IR",
+          "TSE_LISTED_COMPANY_SEARCH_OR_TDNET",
+          "EDINET",
+          "JPX_RIGHTS_LISTING_INFO"
+        ],
+        "tdnet_overview": "https://www.jpx.co.jp/equities/listing/disclosure/tdnet/index.html",
+        "tdnet_public": "https://www.jpx.co.jp/listing/disclosure/01.html",
+        "edinet_api": "https://disclosure2dl.edinet-fsa.go.jp/guide/static/disclosure/WEEK0060.html"
+      }
+    }
+  },
+  "return_contract": {
+    "basis": "MONTHLY_GROSS_TOTAL_WEALTH_RETURN_JPY",
+    "start_price_date": "2026-09-30",
+    "end_price_date": "2026-10-30",
+    "start_wealth": "FROZEN_POSITION_UNITS_OR_WEIGHTS_TIMES_START_CLOSE",
+    "end_wealth": "ACTION_ADJUSTED_UNITS_TIMES_END_CLOSE_PLUS_EXPLICIT_CASH",
+    "cash_distribution_treatment": "RETAIN_AS_CASH_TO_ENDPOINT",
+    "synthetic_reinvestment": false,
+    "infer_action_from_price_jump": false,
+    "missing_value_treatment": "BLOCK",
+    "name_only_relink": "PROHIBITED",
+    "split_reverse_split": "EXPLICIT_PRIMARY_EVIDENCE_REQUIRED",
+    "merger_share_exchange": "EXPLICIT_PRIMARY_EVIDENCE_REQUIRED",
+    "cash_acquisition_squeeze_out": "EXPLICIT_PRIMARY_EVIDENCE_REQUIRED",
+    "delisting": "EXPLICIT_PRIMARY_EVIDENCE_OR_BLOCK"
+  },
+  "terminal_states": {
+    "held_security": [
+      "RETURN_OK_NO_ACTION",
+      "RETURN_OK_ACTION_EXPLAINED",
+      "BLOCK_START_PRICE",
+      "BLOCK_END_PRICE",
+      "BLOCK_DIVIDEND_EVIDENCE",
+      "BLOCK_CORPORATE_ACTION",
+      "BLOCK_IDENTITY"
+    ],
+    "snapshot": [
+      "BLOCK_SOURCE_UNAVAILABLE",
+      "BLOCK_BENCHMARK_MONTHLY_RETURN",
+      "BLOCK_RIGHTS_PUBLICATION"
+    ]
+  },
+  "parser_requirements": {
+    "identity_mapping": "EXACT_JPX_SECURITY_CODE_ONLY",
+    "row_scope": "HELD_SECURITIES_ONLY",
+    "source_provenance": [
+      "SOURCE_SHA256",
+      "RETRIEVAL_TIMESTAMP",
+      "SOURCE_LOCATOR"
+    ],
+    "duplicate_conflict": "BLOCK",
+    "zero_fill": "PROHIBITED",
+    "missing_row": "BLOCK",
+    "name_only_relink": "PROHIBITED"
+  }
+}
