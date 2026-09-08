@@ -4,7 +4,7 @@ import hashlib
 import json
 from typing import Iterable, Mapping
 
-from .enrich import enrich_entity_batch, strong_id
+from .enrich import build_nta_corporate_index, enrich_entity_batch, strong_id
 from .models import EntityRecord, Identifier, SourceRef
 
 IDENTITY_POLICY_VERSION = "wa-conservative-v0.2"
@@ -103,6 +103,8 @@ def build_tse_identity_spine(
     source_metadata: Mapping[str, Mapping[str, object]],
 ) -> dict:
     entities = [_entity_from_dict(row) for row in universe.get("entities", [])]
+    nta_rows = list(nta_rows)
+    nta_by_corporate = build_nta_corporate_index(nta_rows)
     enriched = enrich_entity_batch(
         entities,
         edinet_rows=edinet_rows,
@@ -125,6 +127,13 @@ def build_tse_identity_spine(
         for entity in enriched
         if entity.review_state != "DISPUTED" and strong_id(entity, "JP_CORPORATE_NUMBER") is None
     ]
+    nta_validated = [
+        entity
+        for entity in enriched
+        if entity.review_state != "DISPUTED"
+        and (number := strong_id(entity, "JP_CORPORATE_NUMBER")) is not None
+        and number in nta_by_corporate
+    ]
 
     universe_manifest = universe.get("manifest", {})
     manifest = {
@@ -137,6 +146,12 @@ def build_tse_identity_spine(
         "mapped_count": len(mapped),
         "unresolved_count": len(unresolved),
         "disputed_count": len(disputed),
+        "edinet_count": sum(strong_id(entity, "EDINET_CODE") is not None for entity in enriched),
+        "corporate_number_count": sum(
+            strong_id(entity, "JP_CORPORATE_NUMBER") is not None for entity in enriched
+        ),
+        "nta_validated_count": len(nta_validated),
+        "lei_count": sum(strong_id(entity, "LEI") is not None for entity in enriched),
         "semantic_identity_sha256": _semantic_identity_sha256(enriched),
         "sources": {key: dict(value) for key, value in sorted(source_metadata.items())},
     }
