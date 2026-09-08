@@ -15,12 +15,18 @@ def generate(config: dict) -> dict:
     sources = [source["source_id"] for source in catalog]
     integrated = {source["source_id"] for source in catalog if source["integration_state"] == "integrated"}
     unknown = {source["source_id"] for source in catalog if source["run_state"] == "unknown"}
+    unresolved = {
+        source["source_id"]
+        for source in catalog
+        if source.get("identity_linkage_state") == "unresolved"
+    }
     matrix = build_coverage_matrix(
         entities=config["entities"],
         sources=sources,
         integrated_sources=integrated,
         observations=config["linked_observations"],
         unknown_sources=unknown,
+        unresolved_sources=unresolved,
     )
     return {
         "issue": 42,
@@ -31,9 +37,9 @@ def generate(config: dict) -> dict:
         "matrix": matrix,
         "interpretation": {
             "coverage_only": True,
-            "no_match": "The completed integrated snapshot supplied no linked observation for this entity. It is not a clean/safe/PASS judgment.",
+            "no_match": "The completed integrated snapshot supplied no linked observation for this entity and its identity coverage was sufficient to establish that absence. It is not a clean/safe/PASS judgment.",
             "unknown": "The source could not support a reliable coverage determination for this run.",
-            "unresolved_identity": "Evidence could not be consequentially linked to the canonical entity under the identity policy.",
+            "unresolved_identity": "Evidence or the canonical entity could not be consequentially linked under the identity policy; this state must not collapse into no_match.",
             "not_integrated": "The source is in the registry/coverage catalog but no adopted adapter is integrated in this snapshot.",
             "observed": "At least one source observation is linked to the canonical entity; this is a factual coverage state, not a policy result.",
         },
