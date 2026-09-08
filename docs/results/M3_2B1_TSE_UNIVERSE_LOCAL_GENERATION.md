@@ -38,8 +38,9 @@ Each successful local run also emits a separate manifest containing only non-row
 - publisher/source ID and official source locator;
 - operator-supplied snapshot/effective date and retrieval timestamp;
 - local source filename and SHA-256;
-- adapter version and scope rule;
-- `rights_mode = local_generation_only`;
+- adapter version `0.4`;
+- normalization-rule version `tse-universe-normalization-v0.1`;
+- scope rule and `rights_mode = local_generation_only`;
 - explicit row-publication boundary;
 - Prime / Standard / Growth counts and total entity count;
 - exclusion counts by category;
@@ -70,6 +71,7 @@ CI uses only synthetic/minimal fixtures. It does not fetch JPX and does not publ
 - fail-closed handling of in-scope rows missing required identity fields;
 - canonical security-code ordering;
 - preservation of the existing JPX identifier `SourceRef` in the local row-level envelope;
+- explicit versioning of the TSE universe normalization rules;
 - input-order-independent semantic payload hash;
 - semantic-hash independence from local filename/retrieval-time provenance;
 - byte-level source SHA distinction;
