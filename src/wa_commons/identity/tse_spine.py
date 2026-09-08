@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import Iterable, Mapping
 
 from .enrich import build_nta_corporate_index, enrich_entity_batch, strong_id
@@ -159,3 +160,15 @@ def build_tse_identity_spine(
         "manifest": manifest,
         "entities": [entity.to_dict() for entity in enriched],
     }
+
+
+def write_tse_identity_spine(payload: Mapping[str, object], local_path: str | Path, public_path: str | Path) -> None:
+    local = Path(local_path)
+    public = Path(public_path)
+    local.parent.mkdir(parents=True, exist_ok=True)
+    public.parent.mkdir(parents=True, exist_ok=True)
+    local.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    public.write_text(
+        json.dumps(payload.get("manifest", {}), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
