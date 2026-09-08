@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from wa_commons.identity import jpx_snapshot
 from wa_commons.identity.jpx_snapshot import build_pilot, domestic_company_rows, read_jpx_rows
 
@@ -120,3 +122,19 @@ def test_universe_semantic_hash_is_order_independent(tmp_path):
     assert one["entities"] == two["entities"]
     assert one["manifest"]["semantic_payload_sha256"] == two["manifest"]["semantic_payload_sha256"]
     assert one["manifest"]["source_sha256"] != two["manifest"]["source_sha256"]
+
+
+def test_build_universe_rejects_duplicate_security_codes(tmp_path):
+    fixture = tmp_path / "duplicate.csv"
+    rows = _universe_rows()[:3] + [
+        "20260831,1001,別名テスト,プライム（内国株式）,2050,建設業,3,建設・資材,-,-"
+    ]
+    _write_universe_fixture(fixture, rows)
+
+    with pytest.raises(ValueError, match="duplicate security_code: 1001"):
+        jpx_snapshot.build_universe(
+            fixture,
+            snapshot="2026-08-31",
+            source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
+            retrieved_at="2026-09-08T00:00:00Z",
+        )
