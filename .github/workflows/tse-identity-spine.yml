@@ -1,0 +1,37 @@
+name: tse-identity-spine
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/wa_commons/identity/**'
+      - 'scripts/run_real_identity_pilot.py'
+      - 'scripts/run_tse_identity_spine.py'
+      - 'tests/test_tse_identity_spine.py'
+      - 'tests/test_tse_identity_gleif.py'
+      - 'tests/test_tse_identity_input_validation.py'
+      - 'tests/test_tse_identity_runner.py'
+      - 'docs/results/M3_2B2_TSE_IDENTITY_SPINE.md'
+      - '.github/workflows/tse-identity-spine.yml'
+      - 'pyproject.toml'
+  workflow_dispatch:
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - name: Run Issue 53 focused contracts
+        run: >-
+          python -m pytest -q
+          tests/test_tse_identity_spine.py
+          tests/test_tse_identity_gleif.py
+          tests/test_tse_identity_input_validation.py
+          tests/test_tse_identity_runner.py
+      - name: Verify operator CLI is local-input only
+        run: python scripts/run_tse_identity_spine.py --help >/dev/null
