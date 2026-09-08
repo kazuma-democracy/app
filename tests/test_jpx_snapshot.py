@@ -31,7 +31,6 @@ def _universe_rows() -> list[str]:
         "20260831,8951,REIT TEST,不動産投資信託（REIT）,-,-,-,-,-,-",
         "20260831,131A,PRO TEST,PRO Market,5250,情報・通信業,10,情報通信・サービスその他,-,-",
         "20260831,200A,FOREIGN TEST,プライム（外国株式）,5250,情報・通信業,10,情報通信・サービスその他,-,-",
-        "20260831,,MISSING CODE,プライム（内国株式）,2050,建設業,3,建設・資材,-,-",
     ]
 
 
@@ -119,7 +118,6 @@ def test_build_universe_filters_and_emits_non_row_manifest(tmp_path):
         "reit": 1,
         "tokyo_pro_market": 1,
         "other_market": 1,
-        "invalid_row": 1,
     }
     assert len(manifest["source_sha256"]) == 64
     assert len(manifest["semantic_payload_sha256"]) == 64
@@ -180,6 +178,27 @@ def test_build_universe_rejects_duplicate_security_codes(tmp_path):
     _write_universe_fixture(fixture, rows)
 
     with pytest.raises(ValueError, match="duplicate security_code: 1001"):
+        _build_fixture_universe(fixture)
+
+
+def test_build_universe_rejects_in_scope_row_missing_required_identity_fields(tmp_path):
+    fixture = tmp_path / "missing-code.csv"
+    rows = _universe_rows() + [
+        "20260831,,MISSING CODE,プライム（内国株式）,2050,建設業,3,建設・資材,-,-"
+    ]
+    _write_universe_fixture(fixture, rows)
+
+    with pytest.raises(ValueError, match="in-scope JPX row missing security code or name"):
+        _build_fixture_universe(fixture)
+
+
+def test_build_universe_rejects_source_date_mismatch(tmp_path):
+    fixture = tmp_path / "wrong-date.csv"
+    rows = _universe_rows()
+    rows[0] = rows[0].replace("20260831", "20260901", 1)
+    _write_universe_fixture(fixture, rows)
+
+    with pytest.raises(ValueError, match="source row date 20260901 does not match snapshot 20260831"):
         _build_fixture_universe(fixture)
 
 
