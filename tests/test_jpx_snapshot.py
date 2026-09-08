@@ -154,3 +154,13 @@ def test_write_universe_separates_local_rows_from_public_manifest(tmp_path):
     manifest_text = public_manifest.read_text(encoding="utf-8")
     assert "主要テスト" not in manifest_text
     assert "1001" not in manifest_text
+
+
+def test_write_universe_rejects_same_local_and_public_path(tmp_path):
+    fixture = tmp_path / "listed.csv"
+    _write_universe_fixture(fixture)
+    payload = _build_fixture_universe(fixture)
+    shared_output = tmp_path / "universe.json"
+
+    with pytest.raises(ValueError, match="local and public outputs must be distinct"):
+        jpx_snapshot.write_universe(payload, shared_output, shared_output)
