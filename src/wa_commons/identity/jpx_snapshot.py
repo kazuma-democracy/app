@@ -11,6 +11,7 @@ from .models import EntityRecord, SourceRef
 from .snapshots import sha256_file
 
 DOMESTIC_MARKET_MARKER = "内国株式"
+TSE_UNIVERSE_NORMALIZATION_VERSION = "tse-universe-normalization-v0.1"
 IN_SCOPE_MARKETS = {
     "プライム（内国株式）": "Prime",
     "スタンダード（内国株式）": "Standard",
@@ -193,6 +194,7 @@ def build_universe(
             "source_file": path.name,
             "source_sha256": sha256_file(path),
             "adapter_version": "0.4",
+            "normalization_rule_version": TSE_UNIVERSE_NORMALIZATION_VERSION,
             "selection": "TSE Prime/Standard/Growth domestic companies only",
             "rights_mode": "local_generation_only",
             "row_level_publication": "not_authorized_by_default_free_site_route",
