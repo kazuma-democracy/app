@@ -15,6 +15,7 @@ EXPECTED_CONSTRUCTOR_ID = "benchmark-l2-projection"
 EXPECTED_CONSTRUCTOR_VERSION = "0.1"
 ALLOWED_MAPPING_STATES = {"mapped", "unmapped", "disputed"}
 ALLOWED_DECISIONS = {"EXCLUDE", "WATCH", "NONE"}
+ALLOWED_PREFERENCE_DIRECTIONS = {"prefer", "avoid"}
 
 
 def load_constructor_config(path: str | Path) -> dict[str, Any]:
@@ -87,14 +88,67 @@ def _classify_rows(
     return excluded, unmapped, disputed
 
 
-def _build_reference(benchmark: np.ndarray, excluded: set[int]) -> np.ndarray:
+def _aggregate_preference(signals: list[dict[str, Any]]) -> tuple[float, list[dict[str, Any]]]:
+    unique: dict[str, tuple[str, float]] = {}
+    for signal in signals:
+        rule_id = signal.get("rule_id")
+        direction = signal.get("direction")
+        weight = float(signal.get("weight"))
+        if not isinstance(rule_id, str) or not rule_id:
+            raise ValueError("preference signal requires non-empty rule_id")
+        if direction not in ALLOWED_PREFERENCE_DIRECTIONS:
+            raise ValueError(f"unsupported preference direction: {direction}")
+        if not math.isfinite(weight) or not (0 < weight <= 1):
+            raise ValueError("preference weight must be finite and in (0, 1]")
+        definition = (direction, weight)
+        previous = unique.get(rule_id)
+        if previous is not None and previous != definition:
+            raise ValueError(f"conflicting preference definition for rule_id: {rule_id}")
+        unique[rule_id] = definition
+
+    signed = 0.0
+    normalized: list[dict[str, Any]] = []
+    for rule_id in sorted(unique):
+        direction, weight = unique[rule_id]
+        signed += weight if direction == "prefer" else -weight
+        normalized.append({"rule_id": rule_id, "direction": direction, "weight": weight})
+    score = max(-1.0, min(1.0, signed))
+    return round(score, 12), normalized
+
+
+def _build_reference(
+    ordered: list[dict[str, Any]],
+    benchmark: np.ndarray,
+    excluded: set[int],
+    unmapped: list[int],
+    config: dict[str, Any],
+) -> tuple[np.ndarray, list[dict[str, Any]]]:
     reference = benchmark.copy()
-    for index in excluded:
-        reference[index] = 0.0
+    preference_scores: list[dict[str, Any]] = []
+    tilt_strength = float(config["preference"]["tilt_strength"])
+    unmapped_set = set(unmapped)
+
+    for index, row in enumerate(ordered):
+        if index in excluded:
+            reference[index] = 0.0
+            continue
+        if index in unmapped_set:
+            continue
+        score, unique_signals = _aggregate_preference(row.get("preference_signals", []))
+        if unique_signals:
+            reference[index] *= 1.0 + tilt_strength * score
+            preference_scores.append(
+                {
+                    "security_id": row["security_id"],
+                    "score": score,
+                    "signals": unique_signals,
+                }
+            )
+
     total = float(reference.sum())
     if total <= 0:
-        return reference
-    return reference / total
+        return reference, preference_scores
+    return reference / total, preference_scores
 
 
 def _solver_options(config: dict[str, Any]) -> dict[str, Any]:
@@ -226,7 +280,24 @@ def construct_paper_portfolio(
     if disputed:
         return _failure("INVALID_INPUT_DISPUTED_IDENTITY")
 
-    reference = _build_reference(benchmark, excluded)
+    eligible_count = len(ordered) - len(excluded)
+    if eligible_count == 0:
+        return _failure("INFEASIBLE_ALL_EXCLUDED")
+    max_weight = float(config["constraints"]["max_single_name_weight"])
+    feasibility_tolerance = float(config["numerical"]["feasibility_tolerance"])
+    if eligible_count * max_weight < 1.0 - feasibility_tolerance:
+        return _failure("INFEASIBLE_DIVERSIFICATION_CAP")
+
+    reference, preference_scores = _build_reference(
+        ordered,
+        benchmark,
+        excluded,
+        unmapped,
+        config,
+    )
+    if float(reference.sum()) <= 0:
+        return _failure("INFEASIBLE_ALL_EXCLUDED")
+
     status, raw_weights, diagnostics = _solve_weights(reference, config, excluded)
     if status != cp.OPTIMAL or raw_weights is None:
         return _failure("SOLVER_FAILURE", solver_status=status)
@@ -255,6 +326,7 @@ def construct_paper_portfolio(
             "excluded_benchmark_weight": _format_weight(excluded_weight, config),
             "unmapped_count": len(unmapped),
             "unscreened_benchmark_weight": _format_weight(unscreened_weight, config),
+            "preference_scores": preference_scores,
             "provenance": dict(provenance),
         },
     }
