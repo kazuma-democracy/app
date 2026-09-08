@@ -245,6 +245,10 @@ def test_config_matches_schema(default_config: dict, constructor_schema: dict) -
     jsonschema.validate(default_config, constructor_schema)
 
 
+def test_config_keeps_adopted_unmapped_semantics(default_config: dict) -> None:
+    assert default_config["identity"]["unmapped_behavior"] == "retain_unscreened_no_tilt"
+
+
 def test_manifest_records_runtime_solver_and_policy_summaries(default_config: dict) -> None:
     rows = _rows()
     rows[0]["decision"] = "EXCLUDE"
