@@ -3,12 +3,15 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import platform
 from decimal import Decimal, ROUND_HALF_EVEN
 from pathlib import Path
 from typing import Any
 
 import cvxpy as cp
 import numpy as np
+import osqp
+import scipy
 
 
 EXPECTED_CONSTRUCTOR_ID = "benchmark-l2-projection"
@@ -37,8 +40,56 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("unsupported constructor_id")
     if config.get("constructor_version") != EXPECTED_CONSTRUCTOR_VERSION:
         raise ValueError("unsupported constructor_version")
+    if config.get("objective") != "l2_distance_to_policy_adjusted_benchmark":
+        raise ValueError("unsupported constructor objective")
     if config.get("paper_only") is not True:
         raise ValueError("constructor must be paper-only")
+
+    preference = config.get("preference", {})
+    if preference.get("aggregation") != "unique_rule_signed_sum_clamp":
+        raise ValueError("unsupported preference aggregation")
+    if float(preference.get("tilt_strength", -1)) != 0.5:
+        raise ValueError("unsupported preference tilt_strength")
+    if float(preference.get("score_min", 0)) != -1.0 or float(
+        preference.get("score_max", 0)
+    ) != 1.0:
+        raise ValueError("unsupported preference score bounds")
+
+    constraints = config.get("constraints", {})
+    if constraints.get("long_only") is not True or constraints.get("fully_invested") is not True:
+        raise ValueError("v0.1 requires long-only fully-invested constraints")
+    if float(constraints.get("max_single_name_weight", -1)) != 0.1:
+        raise ValueError("unsupported max_single_name_weight")
+    if float(constraints.get("exclude_weight", -1)) != 0.0:
+        raise ValueError("unsupported exclude_weight")
+
+    identity = config.get("identity", {})
+    if identity.get("unmapped_behavior") != "retain_unscreened_at_benchmark_reference":
+        raise ValueError("unsupported unmapped behavior")
+    if identity.get("disputed_behavior") != "fail_closed":
+        raise ValueError("unsupported disputed behavior")
+
+    semantics = config.get("decision_semantics", {})
+    if semantics.get("watch_behavior") != "eligible_no_automatic_tilt":
+        raise ValueError("unsupported WATCH behavior")
+    if semantics.get("none_behavior") != "eligible_no_automatic_tilt":
+        raise ValueError("unsupported NONE behavior")
+    if semantics.get("none_is_pass") is not False:
+        raise ValueError("NONE must never be treated as PASS")
+
+    solver = config.get("solver", {})
+    if solver.get("library") != "cvxpy" or solver.get("library_version") != "1.9.2":
+        raise ValueError("unsupported modeling library/version")
+    if solver.get("name") != "OSQP" or solver.get("python_package_version") != "1.1.3":
+        raise ValueError("unsupported solver/version")
+    if solver.get("warm_start") is not False:
+        raise ValueError("v0.1 requires warm_start=false")
+
+    numerical = config.get("numerical", {})
+    if int(numerical.get("semantic_weight_decimals", -1)) != 12:
+        raise ValueError("unsupported semantic weight precision")
+    if numerical.get("rounding_mode") != "ROUND_HALF_EVEN":
+        raise ValueError("unsupported rounding mode")
 
 
 def _ordered_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -93,7 +144,10 @@ def _aggregate_preference(signals: list[dict[str, Any]]) -> tuple[float, list[di
     for signal in signals:
         rule_id = signal.get("rule_id")
         direction = signal.get("direction")
-        weight = float(signal.get("weight"))
+        try:
+            weight = float(signal.get("weight"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("preference weight must be numeric") from exc
         if not isinstance(rule_id, str) or not rule_id:
             raise ValueError("preference signal requires non-empty rule_id")
         if direction not in ALLOWED_PREFERENCE_DIRECTIONS:
@@ -256,6 +310,57 @@ def _format_weight(value: float, config: dict[str, Any]) -> str:
     return f"{Decimal(str(float(value))).quantize(quantum, rounding=ROUND_HALF_EVEN):.{decimals}f}"
 
 
+def _mapping_summary(
+    ordered: list[dict[str, Any]], benchmark: np.ndarray, config: dict[str, Any]
+) -> dict[str, Any]:
+    summary: dict[str, Any] = {}
+    for state in ("mapped", "unmapped", "disputed"):
+        indexes = [index for index, row in enumerate(ordered) if row["mapping_state"] == state]
+        summary[f"{state}_count"] = len(indexes)
+        summary[f"{state}_benchmark_weight"] = _format_weight(
+            float(sum(benchmark[index] for index in indexes)), config
+        )
+    return summary
+
+
+def _decision_summary(
+    ordered: list[dict[str, Any]], benchmark: np.ndarray, config: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    summary: dict[str, dict[str, Any]] = {}
+    for decision in ("EXCLUDE", "WATCH", "NONE"):
+        indexes = [
+            index
+            for index, row in enumerate(ordered)
+            if row["mapping_state"] == "mapped" and row.get("decision") == decision
+        ]
+        summary[decision] = {
+            "count": len(indexes),
+            "benchmark_weight": _format_weight(
+                float(sum(benchmark[index] for index in indexes)), config
+            ),
+        }
+    return summary
+
+
+def _target_summary(target_weights: list[dict[str, str]]) -> dict[str, str]:
+    values = [Decimal(item["target_weight"]) for item in target_weights]
+    return {
+        "sum": f"{sum(values):.12f}",
+        "min": f"{min(values):.12f}",
+        "max": f"{max(values):.12f}",
+    }
+
+
+def _runtime_summary() -> dict[str, str]:
+    return {
+        "python": platform.python_version(),
+        "cvxpy": cp.__version__,
+        "osqp": osqp.__version__,
+        "numpy": np.__version__,
+        "scipy": scipy.__version__,
+    }
+
+
 def _failure(status: str, *, solver_status: str | None = None) -> dict[str, Any]:
     manifest: dict[str, Any] = {
         "paper_only": True,
@@ -271,7 +376,7 @@ def construct_paper_portfolio(
     provenance: dict[str, Any],
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Construct the bounded v0.1 paper portfolio from benchmark/policy rows."""
+    """Construct the deterministic bounded v0.1 paper portfolio."""
 
     _validate_config(config)
     ordered = _ordered_rows(rows)
@@ -310,23 +415,51 @@ def construct_paper_portfolio(
         for security_id, weight in zip(security_ids, canonical, strict=True)
     ]
 
+    config_hash = semantic_hash(config)
+    semantic_target_hash = semantic_hash(
+        {
+            "constructor_id": config["constructor_id"],
+            "constructor_version": config["constructor_version"],
+            "config_hash": config_hash,
+            "provenance": provenance,
+            "target_weights": target_weights,
+        }
+    )
     excluded_weight = float(sum(benchmark[index] for index in excluded))
     unscreened_weight = float(sum(benchmark[index] for index in unmapped))
+    solver_options = _solver_options(config)
+
     return {
         "status": "OPTIMAL",
         "target_weights": target_weights,
         "manifest": {
             "constructor_id": config["constructor_id"],
             "constructor_version": config["constructor_version"],
+            "config_hash": config_hash,
             "paper_only": True,
             "real_money_authority": False,
-            "solver_status": status,
-            "solver_objective": diagnostics["objective_value"],
-            "solver_iterations": diagnostics["iterations"],
+            "input_security_count": len(ordered),
+            "benchmark_weight_sum": _format_weight(float(benchmark.sum()), config),
+            "mapping_summary": _mapping_summary(ordered, benchmark, config),
+            "decision_summary": _decision_summary(ordered, benchmark, config),
             "excluded_benchmark_weight": _format_weight(excluded_weight, config),
             "unmapped_count": len(unmapped),
             "unscreened_benchmark_weight": _format_weight(unscreened_weight, config),
             "preference_scores": preference_scores,
+            "solver_status": status,
+            "solver_objective": diagnostics["objective_value"],
+            "solver_iterations": diagnostics["iterations"],
+            "solver": {
+                "library": config["solver"]["library"],
+                "library_version": config["solver"]["library_version"],
+                "name": config["solver"]["name"],
+                "python_package_version": config["solver"]["python_package_version"],
+                "warm_start": config["solver"]["warm_start"],
+                "options": solver_options,
+            },
+            "runtime": _runtime_summary(),
+            "target_summary": _target_summary(target_weights),
+            "semantic_target_hash": semantic_target_hash,
             "provenance": dict(provenance),
         },
     }
