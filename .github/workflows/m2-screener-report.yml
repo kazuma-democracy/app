@@ -8,8 +8,7 @@ on:
       - 'scripts/run_m2_2c_report.py'
       - 'tests/test_explainable_screener_report.py'
       - 'tests/test_m2_2c_report_runner.py'
-      - 'scripts/run_real_identity_pilot.py'
-      - 'scripts/run_real_identity_pilot_fixed.py'
+      - 'configs/m2-2c-display-identities-v0.1.json'
       - 'scripts/run_m1_reproduction.py'
       - 'scripts/run_m2_2a_coverage.py'
       - 'scripts/run_m2_2b_screening.py'
@@ -22,7 +21,7 @@ on:
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -37,8 +36,6 @@ jobs:
           python -m pytest -q
           tests/test_explainable_screener_report.py
           tests/test_m2_2c_report_runner.py
-      - name: Regenerate accepted M1.1 100-company identities
-        run: python scripts/run_real_identity_pilot_fixed.py artifacts/real-identity-pilot
       - name: Regenerate pinned M1 Evidence Graph
         run: python scripts/run_m1_reproduction.py
       - name: Regenerate completed Issue 42 coverage
@@ -55,11 +52,17 @@ jobs:
 
           report = Path('artifacts/m2-screener-report/report.md').read_text(encoding='utf-8')
           manifest = json.loads(Path('artifacts/m2-screener-report/manifest.json').read_text(encoding='utf-8'))
-          identity = json.loads(Path('artifacts/real-identity-pilot/report.json').read_text(encoding='utf-8'))
+          display = json.loads(Path('configs/m2-2c-display-identities-v0.1.json').read_text(encoding='utf-8'))
           screening = json.loads(Path('artifacts/m2-screening/screening.json').read_text(encoding='utf-8'))
 
-          assert identity['semantic_payload_sha256'] == '589bd90eb2bc4a090cc1d73ebabdabab06ae3b12282a3ec38062d78e3399d61f'
+          assert display['display_identity_sha256'] == '50a23df77b6b1fddb8d8634974105dcec0037fede6975273ddf647674d44af35'
+          assert display['provenance']['m1_identity_semantic_payload_sha256'] == '589bd90eb2bc4a090cc1d73ebabdabab06ae3b12282a3ec38062d78e3399d61f'
+          assert display['provenance']['github_actions_run_id'] == 32459258713
+          assert display['provenance']['github_actions_artifact_id'] == 9438384412
+          assert display['provenance']['artifact_digest'] == 'sha256:fba1edd656b3b55b1c2d82dee1333e56779d75b93ee910d0d89abf281e4f375e'
+          assert len(display['entities']) == 100
           assert screening['screening_sha256'] == '7bdfec9c733aa84940e23a8d93153b27f604ee0efc799e6cd9edf628d073971a'
+          assert manifest['display_identity_sha256'] == display['display_identity_sha256']
           assert manifest['company_count'] == 100
           assert manifest['profile_count'] == 3
           assert manifest['none_is_not_pass'] is True
@@ -76,6 +79,8 @@ jobs:
           assert report.count('jp-mod-procurement: `no_match`') == 100
           assert report.count('jp-political-finance: `unresolved_identity`') == 100
           assert report.count('Path: https://github.com/kazuma-democracy/wa-commons/issues/new') == 100
+          assert '極洋' in report
+          assert '鹿島建設' in report
           assert 'NONE is not PASS' in report
           assert '## Policy comparison — same evidence snapshot' in report
           lowered = report.lower()
