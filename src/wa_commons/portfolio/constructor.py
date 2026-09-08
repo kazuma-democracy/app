@@ -46,6 +46,8 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("constructor must be paper-only")
 
     preference = config.get("preference", {})
+    if preference is None or not isinstance(preference, dict):
+        raise ValueError("unsupported preference configuration")
     if preference.get("aggregation") != "unique_rule_signed_sum_clamp":
         raise ValueError("unsupported preference aggregation")
     if float(preference.get("tilt_strength", -1)) != 0.5:
