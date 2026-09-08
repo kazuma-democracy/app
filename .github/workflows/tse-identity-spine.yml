@@ -11,7 +11,7 @@ on:
       - 'tests/test_tse_identity_gleif.py'
       - 'tests/test_tse_identity_input_validation.py'
       - 'tests/test_tse_identity_runner.py'
-      - 'docs/results/M3_2B2_TSE_IDENTITY_SPINE.md'
+      - 'docs/results/M3_2B2_TSE_IDENTITY_SPINE_V01.md'
       - '.github/workflows/tse-identity-spine.yml'
       - 'pyproject.toml'
   workflow_dispatch:
