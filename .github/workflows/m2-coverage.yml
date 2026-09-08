@@ -1,0 +1,55 @@
+name: m2-coverage
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/wa_commons/evidence/coverage.py'
+      - 'configs/m2-2a-coverage-v0.1.json'
+      - 'scripts/run_m2_2a_coverage.py'
+      - 'tests/test_evidence_coverage.py'
+      - 'tests/test_m2_2a_coverage_snapshot.py'
+      - '.github/workflows/m2-coverage.yml'
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - name: Run focused Issue 42 tests
+        run: python -m pytest -q tests/test_evidence_coverage.py tests/test_m2_2a_coverage_snapshot.py
+      - name: Generate machine-readable coverage artifact
+        run: python scripts/run_m2_2a_coverage.py --output artifacts/m2-coverage/coverage.json
+      - name: Verify pinned semantic result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          artifact = json.loads(Path('artifacts/m2-coverage/coverage.json').read_text(encoding='utf-8'))
+          expected = '41361d47e118168c1f393838d3083861d9eed7adc13f6e66d997f3e320f0e403'
+          assert artifact['matrix_sha256'] == expected
+          assert artifact['matrix']['entity_count'] == 100
+          assert artifact['matrix']['cell_count'] == 500
+          assert artifact['matrix']['state_counts'] == {
+              'no_match': 100,
+              'not_integrated': 300,
+              'observed': 0,
+              'unknown': 0,
+              'unresolved_identity': 100,
+          }
+          print(json.dumps({
+              'matrix_sha256': artifact['matrix_sha256'],
+              'state_counts': artifact['matrix']['state_counts'],
+          }, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m2-2a-coverage
+          path: artifacts/m2-coverage/coverage.json
+          retention-days: 30
