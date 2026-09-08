@@ -158,6 +158,10 @@ def build_universe(
         market_counts[segment] += 1
 
     entities.sort(key=lambda row: row["security_code"])
+    for previous, current in zip(entities, entities[1:]):
+        if previous["security_code"] == current["security_code"]:
+            raise ValueError(f"duplicate security_code: {current['security_code']}")
+
     return {
         "manifest": {
             "source": "JPX",
