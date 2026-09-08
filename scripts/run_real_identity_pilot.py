@@ -132,6 +132,36 @@ def nta_rows_for_targets(zip_path: Path, targets: set[str]) -> list[dict[str, st
     return list(found.values())
 
 
+def read_gleif_golden_copy_zip(zip_path: Path, targets: set[str]) -> list[dict[str, str]]:
+    """Read Level 1 Golden Copy CSV rows by exact Japanese registration ID."""
+    if not targets:
+        return []
+    output: list[dict[str, str]] = []
+    authority_key = "Entity.RegistrationAuthority.RegistrationAuthorityID"
+    entity_id_key = "Entity.RegistrationAuthority.RegistrationAuthorityEntityID"
+    with zipfile.ZipFile(zip_path) as zf:
+        csv_names = [name for name in zf.namelist() if name.lower().endswith(".csv")]
+        if not csv_names:
+            raise RuntimeError("GLEIF Golden Copy ZIP contained no CSV")
+        for name in csv_names:
+            with zf.open(name) as raw:
+                text = io.TextIOWrapper(raw, encoding="utf-8-sig", newline="")
+                for row in csv.DictReader(text):
+                    number = str(row.get(entity_id_key, "")).strip()
+                    authority = str(row.get(authority_key, "")).strip()
+                    lei = str(row.get("LEI", "")).strip()
+                    if authority != "RA001075" or number not in targets or not lei:
+                        continue
+                    output.append(
+                        {
+                            "LEI": lei,
+                            authority_key: authority,
+                            entity_id_key: number,
+                        }
+                    )
+    return output
+
+
 def gleif_rows_for_targets(targets: set[str]) -> list[dict[str, str]]:
     """Resolve LEIs only by exact Japanese corporate-number registration IDs."""
     out: list[dict[str, str]] = []
