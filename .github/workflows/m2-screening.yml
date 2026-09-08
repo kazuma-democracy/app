@@ -1,0 +1,90 @@
+name: m2-screening
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/wa_commons/policy/**'
+      - 'configs/m2-2a-coverage-v0.1.json'
+      - 'configs/m2-2b-identity-bridge-v0.1.json'
+      - 'scripts/run_m1_reproduction.py'
+      - 'scripts/run_m2_2a_coverage.py'
+      - 'scripts/run_m2_2b_screening.py'
+      - 'schemas/examples/user-policy.examples.json'
+      - 'tests/test_company_policy_screening.py'
+      - 'tests/test_company_policy_uncertainty.py'
+      - 'tests/test_m2_2b_screening_snapshot.py'
+      - 'docs/results/M2_2B_SCREENING_V01.md'
+      - '.github/workflows/m2-screening.yml'
+  workflow_dispatch:
+
+jobs:
+  screening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - name: Install existing M1 OCR/runtime dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-jpn
+      - name: Run focused Issue 43 tests
+        run: >-
+          python -m pytest -q
+          tests/test_company_policy_screening.py
+          tests/test_company_policy_uncertainty.py
+          tests/test_m2_2b_screening_snapshot.py
+      - name: Generate pinned M1 Evidence Graph input
+        run: python scripts/run_m1_reproduction.py
+      - name: Generate completed Issue 42 coverage input
+        run: python scripts/run_m2_2a_coverage.py --output artifacts/m2-coverage/coverage.json
+      - name: Generate company policy screening artifact
+        run: python scripts/run_m2_2b_screening.py --output artifacts/m2-screening/screening.json
+      - name: Verify pinned current-snapshot result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          artifact = json.loads(Path('artifacts/m2-screening/screening.json').read_text(encoding='utf-8'))
+          assert artifact['screening_sha256'] == '7bdfec9c733aa84940e23a8d93153b27f604ee0efc799e6cd9edf628d073971a'
+          assert artifact['evidence_graph_sha256'] == '0a4f9ed031eaa534e116dca9c441e08054be49047b4404832a14a48094cf2e15'
+          assert artifact['coverage_matrix_sha256'] == '41361d47e118168c1f393838d3083861d9eed7adc13f6e66d997f3e320f0e403'
+          assert artifact['identity_bridge_sha256'] == 'f12fb5bddd8b8a3f99fa47cc6f7da54b1112657d5b9b8a56260690c5ecd1e10e'
+          assert artifact['company_count'] == 100
+          assert artifact['profile_count'] == 3
+          assert artifact['view_count'] == 300
+          assert artifact['graph_claim_count'] == 11
+          assert artifact['mapped_claim_count'] == 0
+          assert artifact['unmapped_claim_count'] == 11
+          assert len(artifact['policy_comparison']) == 3
+          assert all(item['same_evidence_snapshot'] for item in artifact['policy_comparison'])
+          assert all(item['decision_difference_count'] == 0 for item in artifact['policy_comparison'])
+          for counts in artifact['decision_counts_by_profile'].values():
+              assert counts == {'EXCLUDE': 0, 'WATCH': 0, 'NONE': 100}
+          for view in artifact['views']:
+              assert view['decision'] == 'NONE'
+              assert view['claim_results'] == []
+              assert view['coverage_state_counts'] == {
+                  'observed': 0,
+                  'no_match': 1,
+                  'unknown': 0,
+                  'unresolved_identity': 1,
+                  'not_integrated': 3,
+              }
+              assert 'NONE is not PASS' in view['reasoning']
+          print(json.dumps({
+              'screening_sha256': artifact['screening_sha256'],
+              'decision_counts_by_profile': artifact['decision_counts_by_profile'],
+              'mapped_claim_count': artifact['mapped_claim_count'],
+              'unmapped_claim_count': artifact['unmapped_claim_count'],
+          }, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m2-2b-screening
+          path: artifacts/m2-screening/screening.json
+          retention-days: 30
