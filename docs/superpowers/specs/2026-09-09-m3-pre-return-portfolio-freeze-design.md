@@ -49,7 +49,8 @@ The first canonical base profile is fixed to the already-existing M2-selected ex
 - profile version: `1`;
 - policy SHA-256: `7b2558875af5f23ae32061c218a15de94dce479badf239f6b412bd77ba51a72c`;
 - title: `Strict military-specific activity avoidance`;
-- official status: `not_official`.
+- official status: `not_official`;
+- preferences: empty list.
 
 This is not selected because of financial performance. No selected-period candidate return, October benchmark return, tracking result, or portfolio performance is used to choose it.
 
@@ -102,12 +103,13 @@ The assembler must:
 
 1. read the authorized local full #50 mapping artifact;
 2. read the authorized local full #55 row-level screening artifact;
-3. select only `example:strict-military-avoidance` version `1`;
-4. join by the existing exact JPX security/entity identity spine, never by company name;
-5. produce one constructor input row per #50 benchmark constituent with `security_id`, `benchmark_weight`, `mapping_state`, selected policy decision, and any already-existing preference signals;
-6. call `construct_paper_portfolio(...)` from #49 with the pinned v0.1 config;
-7. fail closed on any missing, duplicate, disputed, or inconsistent identity/policy row;
-8. emit the constructor's exact target weights and semantic target hash without post-processing them for convenience.
+3. select only `example:strict-military-avoidance` version `1` with the exact pinned policy SHA-256;
+4. assert that the selected policy's `preferences` array is empty; otherwise return `BLOCK_INPUT_VERSION` rather than invent a preference-evaluation bridge;
+5. join #50 `canonical_entity_id` to #55 `entity_id` through the existing exact identity spine, never by company name;
+6. produce one constructor input row per #50 benchmark constituent with `security_id`, `benchmark_weight`, `mapping_state`, selected policy `decision`, and `preference_signals=[]`;
+7. call `construct_paper_portfolio(...)` from #49 with the pinned v0.1 config;
+8. fail closed on any missing, duplicate, disputed, or inconsistent identity/policy row;
+9. emit the constructor's exact target weights and semantic target hash without post-processing them for convenience.
 
 No selected-period price or return is an input to this function.
 
@@ -252,12 +254,13 @@ The new issue should be completed and merged before #56 ingests canonical select
 
 The implementation plan must cover focused tests proving:
 
-- exact selected profile ID/version/hash;
+- exact selected profile ID/version/hash and empty preference list;
 - exact #50 and #55 semantic input hashes;
-- exact identity join only, with name-only relinking prohibited;
+- exact `canonical_entity_id` to `entity_id` join only, with name-only relinking prohibited;
 - missing/duplicate/disputed rows BLOCK;
 - no market-price/return input is accepted by the freeze runner;
 - constructor config hash is pinned;
+- constructor input `preference_signals` is empty for every row;
 - input ordering does not change semantic target hash;
 - clean rerun reproduces target weights and hash;
 - target weights sum to `1.000000000000` within the existing constructor contract;
@@ -271,7 +274,7 @@ A full repository suite is required once before completion, not after every smal
 Stop without substitution if:
 
 - the exact #50 or #55 local row-level artifact cannot be reproduced from their accepted hashes;
-- the selected policy tuple differs from the pinned tuple;
+- the selected policy tuple differs from the pinned tuple or its preference list is no longer empty;
 - the constructor/config differs from #49 v0.1;
 - any benchmark row cannot be joined through the existing exact identity spine;
 - deterministic reruns produce different target hashes;
