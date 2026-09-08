@@ -29,6 +29,32 @@ def canonical_sha256(value: Any) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _canonical_graph_for_hash(evidence_graph: Mapping[str, Any]) -> dict[str, Any]:
+    """Restore the ordering contract used by the canonical M1 graph builder."""
+    graph = deepcopy(dict(evidence_graph))
+    if "claims" in graph:
+        graph["claims"] = sorted(graph["claims"], key=lambda item: str(item["claim_id"]))
+    if "cards" in graph:
+        graph["cards"] = sorted(graph["cards"], key=lambda item: str(item["claim_id"]))
+    if "observation_summaries" in graph:
+        graph["observation_summaries"] = sorted(
+            graph["observation_summaries"],
+            key=lambda item: (str(item["source_id"]), str(item["observation_id"])),
+        )
+    if "adapter_runs" in graph:
+        graph["adapter_runs"] = sorted(graph["adapter_runs"], key=lambda item: str(item["adapter"]))
+    return graph
+
+
+def _canonical_bridge_for_hash(identity_bridge: Mapping[str, Any]) -> dict[str, Any]:
+    bridge = deepcopy(dict(identity_bridge))
+    bridge["links"] = sorted(
+        bridge.get("links", []),
+        key=lambda item: (str(item["entity_id"]), str(item["corporate_number"])),
+    )
+    return bridge
+
+
 def _corporate_number_from_subject(subject_id: str) -> str | None:
     prefix = "jp:corporate-number:"
     if subject_id.startswith(prefix):
@@ -243,9 +269,9 @@ def build_company_research_views(
 
     semantic = {
         "screening_version": SCREENING_VERSION,
-        "evidence_graph_sha256": canonical_sha256(evidence_graph),
+        "evidence_graph_sha256": canonical_sha256(_canonical_graph_for_hash(evidence_graph)),
         "coverage_matrix_sha256": str(coverage_artifact.get("matrix_sha256", canonical_sha256(coverage_artifact["matrix"]))),
-        "identity_bridge_sha256": canonical_sha256(identity_bridge),
+        "identity_bridge_sha256": canonical_sha256(_canonical_bridge_for_hash(identity_bridge)),
         "company_count": len(company_ids),
         "profile_count": len(policy_rows),
         "view_count": len(views),
