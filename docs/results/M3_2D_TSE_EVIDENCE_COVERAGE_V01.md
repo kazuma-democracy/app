@@ -63,6 +63,18 @@ The existing source catalog currently marks these as not integrated/not run for 
 
 Each therefore contributes **3,707 `not_integrated` cells**, for **11,121** total. These cells are not converted to `no_match` or any positive judgment.
 
+## Source Registry rights boundary
+
+The current `docs/SOURCE_REGISTRY.md` remains authoritative for rights/terms status. This #54 result does not upgrade any source's redistribution rights.
+
+- `jp-mod-procurement`: **Review required** before redistribution.
+- `jp-political-finance`: **Review required** for automated extraction and redistribution.
+- `sipri-arms-industry`: terms/user rules must be recorded; **review required for redistribution/commercial use**.
+- `us-uflpa-entity-list`: U.S. government-source reuse is generally favorable, but exact page terms must be recorded.
+- `oecd-ncp-cases`: **Review required**.
+
+Because source and identity redistribution rights are not uniformly cleared, #54 commits only aggregate counts, semantic hashes, source-level provenance and rights status. Row-level entity/source coverage remains local-only.
+
 ## Determinism
 
 The measured semantic coverage SHA-256 is:
@@ -83,7 +95,7 @@ The public aggregate manifest was verified to contain:
 - no 13-digit corporate-number value;
 - no fixed-100 pilot measurement counters or measurement notes.
 
-Stable source provenance such as adapter version, snapshot version, source SHA-256, identity method, and Source Registry adoption status is retained.
+Stable source provenance such as adapter version, snapshot version, source SHA-256, identity method, and Source Registry adoption status is retained. Rights/terms status is preserved by reference to the current Source Registry above rather than copied into a second independent rights database.
 
 ## Focused behavior verified
 
@@ -114,6 +126,7 @@ Final PR-head CI must still be green before merge.
 - Missing/unintegrated evidence cannot become clean/safe/PASS: **PASS**.
 - Rerun reproduces semantic coverage payload: **PASS**.
 - Targeted tests cover state propagation, unresolved identity, outage behavior, exact-ID linking, deterministic ordering, and publication boundary: **PASS**.
+- Source provenance and current rights/terms status remain explicit: **PASS**.
 - Measured aggregate result is recorded without publishing row-level company data: **PASS**.
 
 Subject to final PR-head CI and review-thread checks, Issue #54 meets its stated definition of done.
