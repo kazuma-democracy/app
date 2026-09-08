@@ -1,22 +1,30 @@
 from __future__ import annotations
 
 import hashlib
+import json
+from pathlib import Path
 
 import pytest
 
 
+ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_IDENTITY_SHA = "589bd90eb2bc4a090cc1d73ebabdabab06ae3b12282a3ec38062d78e3399d61f"
+EXPECTED_DISPLAY_IDENTITY_SHA = "50a23df77b6b1fddb8d8634974105dcec0037fede6975273ddf647674d44af35"
 EXPECTED_SCREENING_SHA = "7bdfec9c733aa84940e23a8d93153b27f604ee0efc799e6cd9edf628d073971a"
 EXPECTED_GRAPH_SHA = "0a4f9ed031eaa534e116dca9c441e08054be49047b4404832a14a48094cf2e15"
 EXPECTED_COVERAGE_SHA = "41361d47e118168c1f393838d3083861d9eed7adc13f6e66d997f3e320f0e403"
 
 
-def runner_api():
+def runner_module():
     try:
-        from scripts.run_m2_2c_report import generate
+        import scripts.run_m2_2c_report as module
     except ModuleNotFoundError as exc:
         pytest.fail(f"Issue 44 report runner missing: {exc}")
-    return generate
+    return module
+
+
+def runner_api():
+    return runner_module().generate
 
 
 def fixture_inputs():
@@ -100,6 +108,17 @@ def fixture_inputs():
     }
     identity_report = {"semantic_payload_sha256": EXPECTED_IDENTITY_SHA}
     return screening, {"claims": []}, identities, identity_report, policies
+
+
+def test_pinned_display_identity_projection_recomputes_to_recorded_hash():
+    module = runner_module()
+    bundle = json.loads((ROOT / "configs" / "m2-2c-display-identities-v0.1.json").read_text(encoding="utf-8"))
+    identities, identity_report = module.display_identity_inputs(bundle)
+    assert len(identities) == 100
+    assert bundle["display_identity_sha256"] == EXPECTED_DISPLAY_IDENTITY_SHA
+    assert identity_report["semantic_payload_sha256"] == EXPECTED_IDENTITY_SHA
+    assert identities[0]["entity_id"] == "wa:org:jp:tse:1301"
+    assert identities[0]["canonical_name"] == "極洋"
 
 
 def test_runner_generates_100_company_report_and_reproducibility_manifest():
