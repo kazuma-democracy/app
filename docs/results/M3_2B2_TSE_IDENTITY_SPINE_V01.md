@@ -90,7 +90,7 @@ The public repository retains aggregate counts, source locators, snapshot identi
 
 ## Source-format observation
 
-During the measured reproduction, the current JPX workbook locator had changed from the historical `data_j.xls` filename to `data_j.xlsx`. The existing #46 reader already supports the current workbook format, so #53 was not blocked and no identity rule was weakened. The stale historical locator should be handled as separate acquisition maintenance rather than folded into identity semantics.
+During the measured reproduction, the current JPX workbook locator had changed from the historical `data_j.xls` filename to `data_j.xlsx`. The existing #46 reader already supports the current workbook format, so #53 was not blocked and no identity rule was weakened. The stale historical locator is tracked separately in Issue #69 rather than folded into identity semantics.
 
 ## Acceptance
 
