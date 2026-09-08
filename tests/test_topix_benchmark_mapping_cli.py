@@ -89,3 +89,126 @@ def test_cli_help_exposes_no_network_acquisition_option():
     help_text = result.stdout.lower()
     assert "--url" not in help_text
     assert "--download" not in help_text
+
+
+def _write_public_weight(path: Path) -> None:
+    text = (
+        "日付,銘柄名,コード,業種,TOPIXに占める個別銘柄のウエイト,ニューインデックス区分\n"
+        "20260831,Alpha,1000,建設業,60.0000%,TOPIX Mid400\n"
+        "20260831,Beta,1001,建設業,40.0000%,TOPIX Small 1\n"
+    )
+    path.write_bytes(text.encode("cp932"))
+
+
+def _write_public_config(path: Path) -> None:
+    payload = {
+        "artifact_version": "m3.3b-topix-benchmark-v0.2",
+        "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+        "provider": "JPX Market Innovation & Research, Inc.",
+        "constituent_product": "TOPIX Component Weight List",
+        "effective_date": "2026-08-31",
+        "available_at": "2026-09-30T16:20:00+09:00",
+        "index_code": "0000",
+        "return_index_code": "6000",
+        "currency": "JPY",
+        "weight_basis": "PROVIDER_PUBLISHED_WEIGHT",
+        "semantic_weight_decimals": 12,
+        "published_weight_percent_decimals": 4,
+        "published_weight_sum_tolerance": "0.000100",
+        "rights_mode": "official_public_web_terms_apply_no_raw_redistribution_assumed",
+        "raw_publication": False,
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_cli_accepts_public_weight_snapshot_without_network(tmp_path):
+    public_weight = tmp_path / "topixweight_j.csv"
+    config = tmp_path / "config.json"
+    identity = tmp_path / "identity.json"
+    local_output = tmp_path / "local.json"
+    public_output = tmp_path / "public.json"
+    _write_public_weight(public_weight)
+    _write_public_config(config)
+    _write_identity(identity)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--public-weight", str(public_weight),
+            "--config", str(config),
+            "--identity", str(identity),
+            "--local-output", str(local_output),
+            "--public-output", str(public_output),
+            "--code-commit", "test-commit",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(public_output.read_text(encoding="utf-8"))
+    assert payload["weight_basis"] == "PROVIDER_PUBLISHED_WEIGHT"
+    assert payload["mapping_summary"]["mapped"]["count"] == 1
+    assert payload["mapping_summary"]["unresolved_identity"]["count"] == 1
+
+
+def test_cli_public_weight_uses_versioned_default_config(tmp_path):
+    public_weight = tmp_path / "topixweight_j.csv"
+    identity = tmp_path / "identity.json"
+    local_output = tmp_path / "local.json"
+    public_output = tmp_path / "public.json"
+    _write_public_weight(public_weight)
+    _write_identity(identity)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--public-weight", str(public_weight),
+            "--identity", str(identity),
+            "--local-output", str(local_output),
+            "--public-output", str(public_output),
+            "--code-commit", "test-commit",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(public_output.read_text(encoding="utf-8"))
+    assert payload["artifact_version"] == "m3.3b-topix-benchmark-v0.2"
+
+
+def test_cli_reports_not_yet_published_for_stale_public_weight(tmp_path):
+    public_weight = tmp_path / "topixweight_j.csv"
+    text = (
+        "日付,銘柄名,コード,業種,TOPIXに占める個別銘柄のウエイト,ニューインデックス区分\n"
+        "20260731,Alpha,1000,建設業,100.0000%,TOPIX Mid400\n"
+    )
+    public_weight.write_bytes(text.encode("cp932"))
+    identity = tmp_path / "identity.json"
+    _write_identity(identity)
+    local_output = tmp_path / "local.json"
+    public_output = tmp_path / "public.json"
+
+    result = subprocess.run(
+        [
+            sys.executable, str(SCRIPT),
+            "--public-weight", str(public_weight),
+            "--identity", str(identity),
+            "--local-output", str(local_output),
+            "--public-output", str(public_output),
+            "--code-commit", "test-commit",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "NOT_YET_PUBLISHED" in result.stderr
+    assert not local_output.exists()
+    assert not public_output.exists()

@@ -99,3 +99,23 @@
 - Type consistency: Task 1 emits `security_id` and `benchmark_weight`; Task 2 adds constructor-compatible `mapping_state`; Task 3 serializes the same payload; Task 4 consumes it without changing semantics.
 
 Execution choice resolved from the user's repeated `続けて`: **Inline Execution** in this session, using `superpowers:executing-plans` with TDD checkpoints.
+
+## 2026-09-08 source-route amendment
+
+New official-provider evidence invalidated the assumption that constituent weights require the paid month-end master.
+
+JPX publishes an official `TOPIX Component Weight List` CSV and states that it is updated after 16:20 JST on the final business day of the following month. The paid DataCube route remains useful for CMV/FFW/index-calculation primitives, but is no longer the only official constituent-weight route.
+
+The benchmark selection itself is unchanged. The amendment extends, rather than replaces, Tasks 1-3:
+
+- keep the v0.1 licensed master parser/CMV reconstruction intact;
+- add v0.2 official public-weight parsing with exact provider weights preserved locally;
+- allow only a pinned rounding-tolerance normalization to exact 12-decimal sum 1.0;
+- keep exact `JPX_SECURITY_CODE` mapping and aggregate-only public output unchanged;
+- keep PR CI local-input-only with no live downloader;
+- add `docs/TOPIX_MONTHLY_BENCHMARK_RUNBOOK.md` for an existing local runtime to execute monthly;
+- if the public CSV is older than the pinned effective date, return `NOT_YET_PUBLISHED` and stop without output.
+
+A live 2026-07-31 file may be used only for non-canonical operator-path validation. #50 acceptance remains pinned to 2026-08-31 and must wait until the official public file itself reports that date.
+
+Verification for this amendment is proportional: the dedicated TOPIX parser/mapping/CLI tests, a two-run live operator validation, fail-closed stale-date validation, `git diff --check`, and public-manifest leak inspection. The earlier full-suite result remains historical evidence; this amendment does not require another broad suite merely for reassurance.

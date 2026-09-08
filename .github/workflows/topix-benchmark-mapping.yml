@@ -5,11 +5,14 @@ on:
     branches: [main]
     paths:
       - 'configs/m3-3b-topix-benchmark-v0.1.json'
+      - 'configs/m3-3b-topix-benchmark-v0.2.json'
       - 'src/wa_commons/portfolio/benchmark_snapshot.py'
       - 'scripts/run_topix_benchmark_mapping.py'
       - 'tests/test_topix_benchmark_snapshot.py'
+      - 'tests/test_topix_public_weight_snapshot.py'
       - 'tests/test_topix_benchmark_mapping.py'
       - 'tests/test_topix_benchmark_mapping_cli.py'
+      - 'docs/TOPIX_MONTHLY_BENCHMARK_RUNBOOK.md'
       - 'docs/results/M3_3B_TOPIX_BENCHMARK_MAPPING_V01.md'
       - '.github/workflows/topix-benchmark-mapping.yml'
       - 'pyproject.toml'
@@ -29,6 +32,7 @@ jobs:
         run: >-
           python -m pytest -q
           tests/test_topix_benchmark_snapshot.py
+          tests/test_topix_public_weight_snapshot.py
           tests/test_topix_benchmark_mapping.py
           tests/test_topix_benchmark_mapping_cli.py
       - name: Verify operator CLI is local-input only

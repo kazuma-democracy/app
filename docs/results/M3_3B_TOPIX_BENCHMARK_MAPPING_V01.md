@@ -1,11 +1,66 @@
 # M3.3b TOPIX benchmark snapshot + TSE mapping v0.1
 
-Status: **BLOCKED_INPUT — licensed 2026-08-31 TOPIX month-end master required**  
-Issue: #50  
-Implementation branch: `feat/issue-50-topix-benchmark-mapping`  
+Status: **BLOCKED_PUBLICATION_LAG -- official public 2026-08-31 component-weight file not yet published**
+Issue: #50
+Implementation branch: `feat/issue-50-topix-benchmark-mapping`
 Implementation checkpoint before this record: `8a47c4a`
 
-## Pinned input contract
+## 2026-09-08 source-route amendment -- official public component weights
+
+New official-provider evidence found after the original #45/#50 implementation changes the access blocker without changing the selected benchmark.
+
+JPX's TOPIX page publishes the official TOPIX component-weight list at:
+
+- source page: `https://www.jpx.co.jp/markets/indices/topix/`
+- CSV: `https://www.jpx.co.jp/automation/markets/indices/topix/files/topixweight_j.csv`
+
+JPX states that the component-weight list is updated **after 16:20 JST on the final business day of the following month**. JPX separately directs users who require FFW and related primitive index inputs to J-Quants DataCube.
+
+For #50, the newly adopted bounded alternative is therefore the same-provider official published constituent-weight file. The benchmark identity, effective date, return variant and strong-ID mapping policy are unchanged. The original licensed DataCube/CMV path remains supported as an audit/primitive-input route; it is no longer the only route for obtaining official constituent weights.
+
+The public-weight route is versioned as `configs/m3-3b-topix-benchmark-v0.2.json` and records:
+
+- target effective date `2026-08-31`;
+- source availability `2026-09-30T16:20:00+09:00` under the JPX publication rule;
+- weight basis `PROVIDER_PUBLISHED_WEIGHT`;
+- provider published weights preserved locally before normalization;
+- explicit rounding tolerance and proportional re-scaling to an exact 12-decimal sum of 1.0;
+- official source URL/page, source SHA-256 and aggregate-only public output.
+
+The operator remains local-input-only: no live download is introduced into PR CI. `docs/TOPIX_MONTHLY_BENCHMARK_RUNBOOK.md` defines the bounded local-AI task that obtains and hashes the official CSV before invoking the mapping CLI.
+
+### Live operator validation, not target acceptance
+
+On 2026-09-08 the live JPX CSV was still effective **2026-07-31**, not the pinned 2026-08-31 target. The raw file SHA-256 was `e8bb15ddbe6f65c11363fe1f816feabc125b8587c520f358dcf191a4e7db0ae7`.
+
+A non-canonical two-run validation against the canonical #53 local identity artifact produced:
+
+- 1,637 official component rows;
+- provider weight sum `0.999996`, rounding gap `0.000004`;
+- normalized benchmark sum `1.000000000000`;
+- exact mapping: 1,637 mapped / 0 unresolved / 0 disputed / 0 out-of-canonical-universe;
+- identical semantic mapping SHA-256 both runs: `1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409`.
+
+This proves the free official operator path works end-to-end, but it does **not** satisfy #50 because the provider file has not yet advanced to the pinned 2026-08-31 effective date.
+
+### Fresh verification after the public-weight extension
+
+- focused Issue #50 tests: **23 passed**;
+- the original licensed-master CLI path remains covered by the same focused suite;
+- malformed dated public rows fail closed rather than being filtered away;
+- stale public source dates return machine-readable `NOT_YET_PUBLISHED` and create no acceptance outputs;
+- the live 2026-07-31 operator validation maps twice to the same semantic hash;
+- aggregate public output contains no row list, canonical entity IDs, or provider row-level weights;
+- `git diff --check` is required clean before delivery;
+- no market return, benchmark return, portfolio construction or performance output was inspected.
+
+### Current resume condition
+
+#50 resumes when the official JPX public component-weight CSV itself reports `20260831`. Then run the v0.2 mapping twice against the same canonical #53 identity artifact, require identical semantic hashes, verify the provider weight rounding gap is within the pinned tolerance, verify exact normalized weight reconciliation, verify aggregate-only public output, and only then create the measured acceptance manifest and close #50.
+
+No ETF proxy, current-constituent substitution, name-only mapping or automatic paid purchase is required for this path.
+
+## Original preregistered input contract (preserved for audit)
 
 The benchmark remains the #45 decision; this issue does not re-select it.
 
@@ -23,7 +78,7 @@ The benchmark remains the #45 decision; this issue does not re-select it.
 
 The 2026-08-31 date is preregistered before any portfolio result inspection and matches the canonical #53 TSE universe effective date.
 
-## Implemented bounded path
+## Original implemented licensed path (preserved for audit)
 
 The implementation is ready to consume the licensed file without adding a downloader or alternate data route.
 
@@ -71,7 +126,7 @@ No licensed TOPIX month-end master was found in those accessible locations. Some
 
 Current JPX DataCube terms/pricing reviewed for this task continue to describe TOPIX month-end master as a paid self-use product and prohibit external distribution. No purchase was made automatically.
 
-## Resume condition
+## Original resume condition (superseded by the public-weight route)
 
 Measured acceptance can resume only when the operator supplies the licensed **TOPIX End of month Master Of Index effective 2026-08-31** to the local workflow.
 
@@ -87,12 +142,24 @@ At that point #50 must:
 
 No alternate benchmark, current public constituent list, reconstructed substitute table or name-only mapping is authorized by this blocker.
 
-## Disposition
+## Original disposition (superseded)
 
 `M3_3B_BENCHMARK_MAPPING = BLOCKED_INPUT`
 
-Implementation: **READY FOR LICENSED INPUT**  
-Measured 2026-08-31 benchmark snapshot: **NOT RUN**  
-Issue #50: **must remain OPEN**  
-Public row-level benchmark data: **NONE**  
+Implementation: **READY FOR LICENSED INPUT**
+Measured 2026-08-31 benchmark snapshot: **NOT RUN**
+Issue #50: **must remain OPEN**
+Public row-level benchmark data: **NONE**
+Real-money/trading authority: **NONE**
+
+## Current disposition
+
+`M3_3B_BENCHMARK_MAPPING = BLOCKED_PUBLICATION_LAG`
+
+Public official-weight implementation: **READY**
+Live operator validation: **PASSED FOR 2026-07-31 ENGINEERING VALIDATION ONLY**
+Measured 2026-08-31 benchmark snapshot: **NOT YET AVAILABLE FROM THE PUBLIC FILE**
+Issue #50: **must remain OPEN**
+Paid month-end master required for constituent/weight acceptance: **NO under the amended official public-weight route**
+Public row-level benchmark data committed by WA Commons: **NONE**
 Real-money/trading authority: **NONE**

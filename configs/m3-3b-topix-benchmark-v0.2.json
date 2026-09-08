@@ -1,0 +1,20 @@
+{
+  "artifact_version": "m3.3b-topix-benchmark-v0.2",
+  "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+  "provider": "JPX Market Innovation & Research, Inc.",
+  "constituent_product": "TOPIX Component Weight List",
+  "effective_date": "2026-08-31",
+  "available_at": "2026-09-30T16:20:00+09:00",
+  "index_code": "0000",
+  "return_index_code": "6000",
+  "currency": "JPY",
+  "weight_basis": "PROVIDER_PUBLISHED_WEIGHT",
+  "semantic_weight_decimals": 12,
+  "published_weight_percent_decimals": 4,
+  "published_weight_sum_tolerance": "0.000100",
+  "source_url": "https://www.jpx.co.jp/automation/markets/indices/topix/files/topixweight_j.csv",
+  "source_page_url": "https://www.jpx.co.jp/markets/indices/topix/",
+  "publication_rule": "updated after 16:20 JST on the final business day of the following month",
+  "rights_mode": "official_public_web_terms_apply_no_raw_redistribution_assumed",
+  "raw_publication": false
+}
