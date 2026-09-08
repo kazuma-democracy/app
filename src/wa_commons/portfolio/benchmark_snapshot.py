@@ -1,0 +1,494 @@
+from __future__ import annotations
+
+import csv
+import hashlib
+import io
+import json
+import re
+from decimal import Decimal, ROUND_HALF_EVEN
+from pathlib import Path
+from typing import Any, Iterable, Mapping
+
+from wa_commons.identity.enrich import normalize_edinet_security_code
+
+EXPECTED_BENCHMARK_ID = "JPX:TOPIX_TOTAL_RETURN:6000"
+EXPECTED_INDEX_CODE = "0000"
+EXPECTED_RETURN_INDEX_CODE = "6000"
+REQUIRED_HEADERS = {
+    "Date",
+    "Local Code",
+    "Name",
+    "ISIN",
+    "CMV",
+    "Index Code",
+    "Index Name",
+}
+PW_DATE = "\u65e5\u4ed8"
+PW_NAME = "\u9298\u67c4\u540d"
+PW_CODE = "\u30b3\u30fc\u30c9"
+PW_INDUSTRY = "\u696d\u7a2e"
+PW_WEIGHT = "TOPIX\u306b\u5360\u3081\u308b\u500b\u5225\u9298\u67c4\u306e\u30a6\u30a8\u30a4\u30c8"
+PW_NEW_INDEX = "\u30cb\u30e5\u30fc\u30a4\u30f3\u30c7\u30c3\u30af\u30b9\u533a\u5206"
+PUBLIC_WEIGHT_REQUIRED_HEADERS = {
+    PW_DATE,
+    PW_NAME,
+    PW_CODE,
+    PW_INDUSTRY,
+    PW_WEIGHT,
+    PW_NEW_INDEX,
+}
+
+
+
+def _canonical_sha256(payload: Any) -> str:
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def load_benchmark_config(path: str | Path) -> dict[str, Any]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def read_topix_month_end_csv(path: str | Path) -> list[dict[str, str]]:
+    raw = Path(path).read_bytes()
+    text: str | None = None
+    for encoding in ("utf-8-sig", "cp932"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise ValueError("TOPIX master CSV encoding is unsupported")
+    reader = csv.DictReader(io.StringIO(text))
+    headers = set(reader.fieldnames or [])
+    missing = REQUIRED_HEADERS - headers
+    if missing:
+        raise ValueError(f"TOPIX master CSV missing required headers: {sorted(missing)}")
+    return [dict(row) for row in reader]
+
+
+def read_topix_public_weight_csv(path: str | Path) -> list[dict[str, str]]:
+    raw = Path(path).read_bytes()
+    text: str | None = None
+    for encoding in ("utf-8-sig", "cp932"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise ValueError("TOPIX public weight CSV encoding is unsupported")
+    reader = csv.DictReader(io.StringIO(text))
+    headers = set(reader.fieldnames or [])
+    missing = PUBLIC_WEIGHT_REQUIRED_HEADERS - headers
+    if missing:
+        raise ValueError(f"TOPIX public weight CSV missing required headers: {sorted(missing)}")
+    rows: list[dict[str, str]] = []
+    for raw_row in reader:
+        row = dict(raw_row)
+        date = str(row.get(PW_DATE, "")).strip()
+        if not re.fullmatch(r"\d{8}", date):
+            continue
+        code = str(row.get(PW_CODE, "")).strip()
+        weight = str(row.get(PW_WEIGHT, "")).strip()
+        if not code or not weight.endswith("%"):
+            raise ValueError("TOPIX public dated constituent row is missing code or published weight")
+        rows.append(row)
+    return rows
+
+
+
+def _validate_public_weight_config(config: Mapping[str, Any]) -> None:
+    if config.get("benchmark_id") != EXPECTED_BENCHMARK_ID:
+        raise ValueError("unsupported benchmark_id")
+    if str(config.get("index_code")) != EXPECTED_INDEX_CODE:
+        raise ValueError("unsupported TOPIX Index Code")
+    if str(config.get("return_index_code")) != EXPECTED_RETURN_INDEX_CODE:
+        raise ValueError("unsupported TOPIX return index code")
+    if config.get("weight_basis") != "PROVIDER_PUBLISHED_WEIGHT":
+        raise ValueError("TOPIX public benchmark weight basis must be PROVIDER_PUBLISHED_WEIGHT")
+    if config.get("raw_publication") is not False:
+        raise ValueError("TOPIX raw rows must not be public")
+
+
+def _normalize_public_weight_row(raw: Mapping[str, Any], expected_date: str) -> dict[str, Any]:
+    date = str(raw.get(PW_DATE, "")).strip()
+    if date != expected_date:
+        raise ValueError("TOPIX public weight row effective date does not match pinned effective date")
+    provider_code = str(raw.get(PW_CODE, "")).strip().upper()
+    code = normalize_edinet_security_code(provider_code)
+    if len(code) != 4 or not code.isalnum():
+        raise ValueError("TOPIX public security code cannot be normalized to four characters")
+    text = str(raw.get(PW_WEIGHT, "")).strip()
+    if not text.endswith("%"):
+        raise ValueError("TOPIX public weight must be a percentage")
+    try:
+        weight = Decimal(text[:-1].strip()) / Decimal(100)
+    except Exception as exc:
+        raise ValueError("TOPIX public weight must be numeric") from exc
+    if not weight.is_finite() or weight < 0:
+        raise ValueError("TOPIX public weight must be finite and non-negative")
+    return {
+        "security_id": f"TSE:{code}",
+        "security_code": code,
+        "provider_local_code": provider_code,
+        "name": str(raw.get(PW_NAME, "")).strip(),
+        "industry": str(raw.get(PW_INDUSTRY, "")).strip(),
+        "new_index_series": str(raw.get(PW_NEW_INDEX, "")).strip(),
+        "provider_published_weight": weight,
+    }
+
+
+
+def _rescale_published_weights(rows: list[dict[str, Any]], decimals: int) -> list[dict[str, Any]]:
+    total = sum((row["provider_published_weight"] for row in rows), Decimal(0))
+    if total <= 0:
+        raise ValueError("TOPIX provider published weight sum must be positive")
+    quantum = Decimal(1).scaleb(-decimals)
+    weights = [
+        (row["provider_published_weight"] / total).quantize(quantum, rounding=ROUND_HALF_EVEN)
+        for row in rows
+    ]
+    target = Decimal("1").quantize(quantum)
+    residual = target - sum(weights)
+    if residual:
+        recipient = min(
+            range(len(rows)),
+            key=lambda index: (-rows[index]["provider_published_weight"], rows[index]["security_id"]),
+        )
+        weights[recipient] += residual
+    output: list[dict[str, Any]] = []
+    for row, weight in zip(rows, weights, strict=True):
+        output.append({
+            "security_id": row["security_id"],
+            "security_code": row["security_code"],
+            "provider_local_code": row["provider_local_code"],
+            "name": row["name"],
+            "industry": row["industry"],
+            "new_index_series": row["new_index_series"],
+            "provider_published_weight": format(row["provider_published_weight"], ".6f"),
+            "benchmark_weight": f"{weight:.{decimals}f}",
+        })
+    return output
+
+
+def build_topix_public_weight_snapshot(
+    rows: Iterable[Mapping[str, Any]],
+    config: Mapping[str, Any],
+    source_sha256: str,
+) -> dict[str, Any]:
+    _validate_public_weight_config(config)
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", str(source_sha256)):
+        raise ValueError("source SHA-256 must be 64 hexadecimal characters")
+    normalized = [_normalize_public_weight_row(row, _expected_date(config)) for row in rows]
+    if not normalized:
+        raise ValueError("TOPIX public weight file contains no rows")
+    normalized.sort(key=lambda row: row["security_id"])
+    security_ids = [row["security_id"] for row in normalized]
+    if len(security_ids) != len(set(security_ids)):
+        raise ValueError("duplicate TOPIX public security code after normalization")
+    decimals = int(config.get("semantic_weight_decimals", 12))
+    if decimals != 12:
+        raise ValueError("semantic_weight_decimals must be 12")
+    percent_decimals = int(config.get("published_weight_percent_decimals", 4))
+    if percent_decimals != 4:
+        raise ValueError("published_weight_percent_decimals must be 4")
+    tolerance = Decimal(str(config.get("published_weight_sum_tolerance", "")))
+    if not tolerance.is_finite() or tolerance <= 0:
+        raise ValueError("published_weight_sum_tolerance must be positive")
+    provider_sum = sum((row["provider_published_weight"] for row in normalized), Decimal(0))
+    gap = Decimal(1) - provider_sum
+    if abs(gap) > tolerance:
+        raise ValueError("TOPIX provider published weight sum exceeds rounding tolerance")
+    output_rows = _rescale_published_weights(normalized, decimals)
+    config_sha = _canonical_sha256(dict(config))
+    manifest = {
+        "artifact_version": config["artifact_version"],
+        "benchmark_id": config["benchmark_id"],
+        "provider": config["provider"],
+        "constituent_product": config["constituent_product"],
+        "effective_date": config["effective_date"],
+        "available_at": config["available_at"],
+        "index_code": config["index_code"],
+        "return_index_code": config["return_index_code"],
+        "currency": config["currency"],
+        "weight_basis": config["weight_basis"],
+        "rights_mode": config["rights_mode"],
+        "raw_publication": config["raw_publication"],
+        "source_sha256": str(source_sha256).lower(),
+        "config_sha256": config_sha,
+        "constituent_count": len(output_rows),
+        "provider_weight_sum": format(provider_sum, ".6f"),
+        "provider_weight_rounding_gap": format(gap, ".6f"),
+        "normalization_method": "proportional_rescale_published_weights",
+        "benchmark_weight_sum": f"{sum(Decimal(row['benchmark_weight']) for row in output_rows):.{decimals}f}",
+        "source_url": config.get("source_url"),
+        "source_page_url": config.get("source_page_url"),
+        "publication_rule": config.get("publication_rule"),
+    }
+    manifest["semantic_snapshot_sha256"] = _canonical_sha256({"manifest": manifest, "rows": output_rows})
+    return {"manifest": manifest, "rows": output_rows}
+
+
+def _validate_config(config: Mapping[str, Any]) -> None:
+    if config.get("benchmark_id") != EXPECTED_BENCHMARK_ID:
+        raise ValueError("unsupported benchmark_id")
+    if str(config.get("index_code")) != EXPECTED_INDEX_CODE:
+        raise ValueError("unsupported TOPIX Index Code")
+    if str(config.get("return_index_code")) != EXPECTED_RETURN_INDEX_CODE:
+        raise ValueError("unsupported TOPIX return index code")
+    if config.get("weight_basis") != "CMV":
+        raise ValueError("TOPIX benchmark weight basis must be CMV")
+    if config.get("raw_publication") is not False:
+        raise ValueError("licensed TOPIX raw rows must not be public")
+
+
+def _expected_date(config: Mapping[str, Any]) -> str:
+    text = str(config.get("effective_date", "")).strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        raise ValueError("effective_date must be YYYY-MM-DD")
+    return text.replace("-", "")
+
+
+def _normalize_row(raw: Mapping[str, Any], expected_date: str) -> dict[str, Any]:
+    date = str(raw.get("Date", "")).strip()
+    if date != expected_date:
+        raise ValueError("TOPIX row effective date does not match pinned effective date")
+    if str(raw.get("Index Code", "")).strip() != EXPECTED_INDEX_CODE:
+        raise ValueError("TOPIX row Index Code must be 0000")
+    if str(raw.get("Index Name", "")).strip().upper() != "TOPIX":
+        raise ValueError("TOPIX row Index Name must be TOPIX")
+
+    provider_code = str(raw.get("Local Code", "")).strip().upper()
+    code = normalize_edinet_security_code(provider_code)
+    if len(code) != 4 or not code.isalnum():
+        raise ValueError("TOPIX Local Code cannot be normalized to a four-character security code")
+    try:
+        cmv = Decimal(str(raw.get("CMV", "")).strip())
+    except Exception as exc:
+        raise ValueError("TOPIX CMV must be numeric") from exc
+    if not cmv.is_finite() or cmv <= 0:
+        raise ValueError("TOPIX CMV must be finite and positive")
+
+    return {
+        "security_id": f"TSE:{code}",
+        "security_code": code,
+        "provider_local_code": provider_code,
+        "name": str(raw.get("Name", "")).strip(),
+        "isin": str(raw.get("ISIN", "")).strip().upper(),
+        "cmv_jpy": cmv,
+    }
+
+
+def _format_weights(rows: list[dict[str, Any]], decimals: int) -> list[dict[str, Any]]:
+    quantum = Decimal(1).scaleb(-decimals)
+    total_cmv = sum(row["cmv_jpy"] for row in rows)
+    weights = [
+        (row["cmv_jpy"] / total_cmv).quantize(quantum, rounding=ROUND_HALF_EVEN)
+        for row in rows
+    ]
+    target = Decimal("1").quantize(quantum)
+    residual = target - sum(weights)
+    if residual:
+        recipient = min(
+            range(len(rows)),
+            key=lambda index: (-rows[index]["cmv_jpy"], rows[index]["security_id"]),
+        )
+        weights[recipient] += residual
+    if sum(weights) != target:
+        raise ValueError("reconstructed TOPIX weights do not reconcile to 1.0")
+
+    output: list[dict[str, Any]] = []
+    for row, weight in zip(rows, weights, strict=True):
+        output.append({
+            "security_id": row["security_id"],
+            "security_code": row["security_code"],
+            "provider_local_code": row["provider_local_code"],
+            "name": row["name"],
+            "isin": row["isin"],
+            "cmv_jpy": format(row["cmv_jpy"], "f"),
+            "benchmark_weight": f"{weight:.{decimals}f}",
+        })
+    return output
+
+
+def build_topix_snapshot(
+    rows: Iterable[Mapping[str, Any]],
+    config: Mapping[str, Any],
+    source_sha256: str,
+) -> dict[str, Any]:
+    _validate_config(config)
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", str(source_sha256)):
+        raise ValueError("source SHA-256 must be 64 hexadecimal characters")
+    normalized = [_normalize_row(row, _expected_date(config)) for row in rows]
+    if not normalized:
+        raise ValueError("TOPIX master contains no rows")
+    normalized.sort(key=lambda row: row["security_id"])
+    security_ids = [row["security_id"] for row in normalized]
+    if len(security_ids) != len(set(security_ids)):
+        raise ValueError("duplicate Local Code after normalization")
+
+    decimals = int(config.get("semantic_weight_decimals", 12))
+    if decimals != 12:
+        raise ValueError("semantic_weight_decimals must be 12")
+    output_rows = _format_weights(normalized, decimals)
+    config_sha = _canonical_sha256(dict(config))
+    total_cmv = sum(Decimal(row["cmv_jpy"]) for row in output_rows)
+    manifest = {
+        "artifact_version": config["artifact_version"],
+        "benchmark_id": config["benchmark_id"],
+        "provider": config["provider"],
+        "constituent_product": config["constituent_product"],
+        "effective_date": config["effective_date"],
+        "available_at": config["available_at"],
+        "index_code": config["index_code"],
+        "return_index_code": config["return_index_code"],
+        "currency": config["currency"],
+        "weight_basis": config["weight_basis"],
+        "rights_mode": config["rights_mode"],
+        "raw_publication": config["raw_publication"],
+        "source_sha256": str(source_sha256).lower(),
+        "config_sha256": config_sha,
+        "constituent_count": len(output_rows),
+        "total_cmv_jpy": format(total_cmv, "f"),
+        "benchmark_weight_sum": f"{sum(Decimal(row['benchmark_weight']) for row in output_rows):.{decimals}f}",
+    }
+    manifest["semantic_snapshot_sha256"] = _canonical_sha256({"manifest": manifest, "rows": output_rows})
+    return {"manifest": manifest, "rows": output_rows}
+
+
+def _canonical_security_index(identity: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    index: dict[str, Mapping[str, Any]] = {}
+    for entity in identity.get("entities", []):
+        values = {
+            str(identifier.get("value", "")).strip().upper()
+            for identifier in entity.get("identifiers", [])
+            if str(identifier.get("scheme", "")).strip() == "JPX_SECURITY_CODE"
+            and str(identifier.get("value", "")).strip()
+        }
+        if len(values) > 1:
+            raise ValueError("canonical entity has multiple JPX_SECURITY_CODE identifiers")
+        if not values:
+            continue
+        code = next(iter(values))
+        previous = index.get(code)
+        if previous is not None and previous.get("entity_id") != entity.get("entity_id"):
+            raise ValueError("duplicate canonical JPX_SECURITY_CODE")
+        index[code] = entity
+    return index
+
+
+def _mapping_bucket(reason: str) -> str:
+    return {
+        "exact_jpx_security_code": "mapped",
+        "canonical_identity_unresolved": "unresolved_identity",
+        "canonical_identity_disputed": "disputed",
+        "out_of_canonical_universe": "out_of_canonical_universe",
+    }[reason]
+
+
+def map_topix_snapshot(
+    snapshot: Mapping[str, Any],
+    identity: Mapping[str, Any],
+) -> dict[str, Any]:
+    identity_sha = str(identity.get("manifest", {}).get("semantic_identity_sha256", "")).strip()
+    if not re.fullmatch(r"[0-9a-fA-F]{64}", identity_sha):
+        raise ValueError("identity semantic SHA-256 is missing or invalid")
+    index = _canonical_security_index(identity)
+    mapped_rows: list[dict[str, Any]] = []
+
+    for raw in snapshot.get("rows", []):
+        row = dict(raw)
+        code = str(row.get("security_code", "")).strip().upper()
+        entity = index.get(code)
+        if entity is None:
+            state, reason = "unmapped", "out_of_canonical_universe"
+            entity_id, review_state = None, None
+        else:
+            review_state = str(entity.get("review_state", "")).strip().upper()
+            entity_id = str(entity.get("entity_id", "")).strip() or None
+            if review_state == "CONFIRMED":
+                state, reason = "mapped", "exact_jpx_security_code"
+            elif review_state == "UNRESOLVED":
+                state, reason = "unmapped", "canonical_identity_unresolved"
+            elif review_state == "DISPUTED":
+                state, reason = "disputed", "canonical_identity_disputed"
+            else:
+                raise ValueError(f"unsupported canonical identity review_state: {review_state}")
+        mapped_rows.append({
+            **row,
+            "mapping_state": state,
+            "mapping_reason": reason,
+            "canonical_entity_id": entity_id,
+            "canonical_review_state": review_state,
+        })
+
+    mapped_rows.sort(key=lambda row: row["security_id"])
+    decimals = 12
+    summary: dict[str, dict[str, Any]] = {}
+    for bucket in ("mapped", "unresolved_identity", "disputed", "out_of_canonical_universe"):
+        selected = [row for row in mapped_rows if _mapping_bucket(row["mapping_reason"]) == bucket]
+        weight = sum(Decimal(row["benchmark_weight"]) for row in selected)
+        summary[bucket] = {
+            "count": len(selected),
+            "benchmark_weight": f"{weight:.{decimals}f}",
+        }
+    total_weight = sum(Decimal(bucket["benchmark_weight"]) for bucket in summary.values())
+    if total_weight != Decimal("1.000000000000"):
+        raise ValueError("mapped TOPIX benchmark weights do not reconcile to 1.0")
+
+    manifest = {
+        **dict(snapshot.get("manifest", {})),
+        "identity_semantic_sha256": identity_sha.lower(),
+        "mapping_summary": summary,
+    }
+    manifest["semantic_mapping_sha256"] = _canonical_sha256({
+        "snapshot_semantic_sha256": manifest.get("semantic_snapshot_sha256"),
+        "identity_semantic_sha256": manifest["identity_semantic_sha256"],
+        "mapping_summary": summary,
+        "rows": mapped_rows,
+    })
+    return {"manifest": manifest, "rows": mapped_rows}
+
+
+def sha256_file(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_topix_benchmark_mapping(
+    payload: Mapping[str, Any],
+    local_output: str | Path,
+    public_output: str | Path,
+) -> None:
+    local_path = Path(local_output)
+    public_path = Path(public_output)
+    if local_path.resolve() == public_path.resolve():
+        raise ValueError("local and public outputs must differ")
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    public_path.parent.mkdir(parents=True, exist_ok=True)
+    local_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    manifest = dict(payload.get("manifest", {}))
+    public_keys = (
+        "artifact_version", "benchmark_id", "provider", "constituent_product",
+        "effective_date", "available_at", "index_code", "return_index_code",
+        "currency", "weight_basis", "rights_mode", "raw_publication",
+        "source_url", "source_page_url", "publication_rule",
+        "source_sha256", "config_sha256", "constituent_count", "benchmark_weight_sum",
+        "provider_weight_sum", "provider_weight_rounding_gap", "normalization_method",
+        "semantic_snapshot_sha256", "identity_semantic_sha256", "mapping_summary",
+        "semantic_mapping_sha256", "code_commit",
+    )
+    public_payload = {key: manifest[key] for key in public_keys if key in manifest}
+    public_path.write_text(
+        json.dumps(public_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )

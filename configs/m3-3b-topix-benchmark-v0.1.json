@@ -1,0 +1,15 @@
+{
+  "artifact_version": "m3.3b-topix-benchmark-v0.1",
+  "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+  "provider": "JPX Market Innovation & Research, Inc.",
+  "constituent_product": "TOPIX End of month Master Of Index",
+  "effective_date": "2026-08-31",
+  "available_at": "2026-09-01T16:20:00+09:00",
+  "index_code": "0000",
+  "return_index_code": "6000",
+  "currency": "JPY",
+  "weight_basis": "CMV",
+  "semantic_weight_decimals": 12,
+  "rights_mode": "licensed_local_self_use_no_external_distribution",
+  "raw_publication": false
+}
