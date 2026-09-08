@@ -33,18 +33,22 @@ def build_coverage_matrix(
     integrated_sources: set[str],
     observations: Iterable[Mapping[str, object]],
     unknown_sources: set[str],
+    unresolved_sources: set[str],
 ) -> dict:
     """Build a deterministic entity-by-source evidence coverage matrix.
 
     Coverage states describe only whether an integrated source produced usable
     observations for a resolved entity. They are not moral or policy outcomes.
-    In particular, ``no_match`` means only that the completed integrated source
-    snapshot supplied no matching observation for that entity.
+    In particular, ``no_match`` means only that a completed integrated source
+    snapshot supplied no matching observation for that entity. A source with
+    unresolved identity linkage cannot establish ``no_match`` for otherwise
+    unobserved entities.
     """
     entity_rows = sorted((dict(entity) for entity in entities), key=_entity_id)
     source_ids = sorted({str(source).strip() for source in sources if str(source).strip()})
     integrated = {str(source).strip() for source in integrated_sources}
     unknown = {str(source).strip() for source in unknown_sources}
+    unresolved = {str(source).strip() for source in unresolved_sources}
 
     counts: Counter[tuple[str, str]] = Counter()
     for observation in observations:
@@ -62,10 +66,12 @@ def build_coverage_matrix(
                 state = "not_integrated"
             elif not _identity_is_resolved(entity):
                 state = "unresolved_identity"
-            elif source_id in unknown:
-                state = "unknown"
             elif observation_count:
                 state = "observed"
+            elif source_id in unresolved:
+                state = "unresolved_identity"
+            elif source_id in unknown:
+                state = "unknown"
             else:
                 state = "no_match"
             rows.append(
