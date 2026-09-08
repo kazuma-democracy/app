@@ -1,0 +1,19 @@
+{
+  "artifact_version": "m3.3c0-free-monthly-prereg-v0.1",
+  "issue": 78,
+  "timezone": "Asia/Tokyo",
+  "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+  "benchmark_effective_date": "2026-07-31",
+  "benchmark_semantic_mapping_sha256": "1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409",
+  "portfolio_definition_cutoff": "2026-09-29_CLOSE",
+  "execution_start_valuation": "2026-09-30_CLOSE",
+  "evaluation_start": "2026-10-01",
+  "evaluation_end": "2026-10-30",
+  "benchmark_period": "2026-10",
+  "return_basis": "MONTHLY_GROSS_TOTAL_WEALTH_RETURN_JPY",
+  "rebalance_policy": "NONE_AFTER_INITIAL_ALLOCATION",
+  "purchase_authorized": false,
+  "subscription_authorized": false,
+  "selected_period_rows_ingested": false,
+  "implementation_gate": "READY_FOR_ISSUE_56_AFTER_PREREG_VERIFICATION"
+}
