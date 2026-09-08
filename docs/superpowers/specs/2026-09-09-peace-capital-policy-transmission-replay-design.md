@@ -1,7 +1,8 @@
 # Peace Capital Policy Transmission + Historical Replay Design
 
-Status: **PROPOSED SUPERSEDING ARCHITECTURE — pending written-spec review**
+Status: **APPROVED — superseding M3 architecture**
 
+Approved by user: 2026-09-09  
 Date: 2026-09-09
 
 ## 1. Why this design changes now
@@ -290,39 +291,43 @@ Its role changes:
 
 October performance must not be used to choose P0/P1/P2 semantics or the replay method.
 
-## 14. Issue/roadmap restructuring if this spec is approved
+## 14. Approved issue/roadmap transition
 
-The current #80 contract explicitly prohibits new policy semantics and constructor redesign, so it must not be implemented as written after this architecture is adopted.
+This architecture is approved. The prior #80 contract explicitly prohibited new policy semantics and constructor redesign, so it must not be implemented as written.
 
-Recommended transition:
+The approved transition is:
 
-1. mark #80 **SUPERSEDED** before implementation, preserving its design/plan as history;
-2. create a new bounded issue for **Policy Compiler v0 + P0/P1/P2 current-snapshot transmission test**;
-3. create a separate bounded issue for **three-month leak-safe Historical Replay qualification and execution**;
-4. generalize #56 from "October-only market snapshot" into reusable monthly JPX parsing/normalization primitives while preserving October as the future-holdout instance;
-5. update #51 so the first integrated report treats Policy Transmission metrics as primary and financial consequences as secondary, and can compare the preregistered policy family;
-6. preserve #78's zero-cost/monthly/fail-closed source principles, amending only the single-period-only assumption when replay support is added explicitly.
+1. #80 is **SUPERSEDED / closed not_planned**, preserving its design/plan as history;
+2. #84 owns **Policy Compiler v0 + P0/P1/P2 current-snapshot Policy Transmission proof**;
+3. #85 owns **three-month leak-safe Historical Replay qualification and execution** after #84 and the required monthly market primitives;
+4. #56 is generalized from an October-only snapshot into reusable monthly JPX parsing/normalization primitives while preserving October as the future-holdout instance;
+5. #51 treats Policy Transmission metrics as primary and financial consequences as secondary, comparing the preregistered policy family;
+6. #78 remains the zero-cost/monthly/fail-closed source-rights foundation and retains the October 2026 prospective holdout contract.
 
-One bounded issue remains active at a time.
+One bounded issue remains active at a time. The immediate implementation issue is #84.
 
 ## 15. Fast-path implementation order
 
 ```text
-A. Policy Compiler v0
+A. #84 Policy Compiler v0
    + P0/P1/P2
    + Reallocation Mass / attribution
             ↓
-B. Current accepted snapshot transmission proof
+B. #84 Current accepted snapshot transmission proof
             ↓
-C. Historical replay capability audit (metadata only)
+C. #56 Reusable free-monthly market primitives
             ↓
-D. Freeze exact three-month replay window
+D. #85 Historical replay capability audit (metadata only)
             ↓
-E. Run three-month replay
+E. #85 Freeze exact three-month replay window
             ↓
-F. Extend same engine to 12–24 months
+F. #85 Run three-month replay
             ↓
-G. October 2026 true future holdout
+G. Extend same engine to 12–24 months
+            ↓
+H. October 2026 true future holdout
+            ↓
+I. #51 Integrated policy-family evaluation
 ```
 
 This order minimizes waiting and avoids building broad history infrastructure before proving the core routing behavior.
@@ -364,7 +369,7 @@ Missing evidence or data never becomes a clean/pass state.
 
 ## 18. Acceptance
 
-Architecture is ready for implementation planning only when all are true:
+Architecture is approved for implementation planning because all are true:
 
 - P0/P1/P2 semantics are fixed before return inspection;
 - P1 preserves the current strict profile as a minimal-intervention arm;
@@ -373,6 +378,6 @@ Architecture is ready for implementation planning only when all are true:
 - historical replay month selection is performance-blind and preregistered before return loading;
 - as-known evidence and point-in-time benchmark requirements remain fail-closed;
 - October remains a distinct prospective holdout;
-- old #80 is not silently rewritten or implemented under incompatible assumptions;
+- old #80 is explicitly superseded and will not be implemented under incompatible assumptions;
 - #56/#51 responsibility changes are explicit and versioned;
 - no selected-period performance has been used to justify this architecture.
