@@ -132,7 +132,15 @@ def build_tse_identity_spine(
     code_commit: str,
     source_metadata: Mapping[str, Mapping[str, object]],
 ) -> dict:
-    entities = [_entity_from_dict(row) for row in universe.get("entities", [])]
+    universe_manifest = universe.get("manifest", {})
+    raw_entities = list(universe.get("entities", []))
+    expected_entity_count = universe_manifest.get("entity_count")
+    if expected_entity_count is not None and int(expected_entity_count) != len(raw_entities):
+        raise ValueError(
+            f"universe manifest entity_count {expected_entity_count} does not match {len(raw_entities)} entities"
+        )
+
+    entities = [_entity_from_dict(row) for row in raw_entities]
     nta_rows = list(nta_rows)
     nta_by_corporate = build_nta_corporate_index(nta_rows)
     gleif_rows = _gleif_japan_registration_rows(gleif_rows)
@@ -166,7 +174,6 @@ def build_tse_identity_spine(
         and number in nta_by_corporate
     ]
 
-    universe_manifest = universe.get("manifest", {})
     manifest = {
         "identity_policy_version": IDENTITY_POLICY_VERSION,
         "code_commit": code_commit,
