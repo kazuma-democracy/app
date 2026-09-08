@@ -15,5 +15,52 @@
   "purchase_authorized": false,
   "subscription_authorized": false,
   "selected_period_rows_ingested": false,
-  "implementation_gate": "READY_FOR_ISSUE_56_AFTER_PREREG_VERIFICATION"
+  "implementation_gate": "READY_FOR_ISSUE_56_AFTER_PREREG_VERIFICATION",
+  "source_contract": {
+    "cost_model": "ZERO_PURCHASE_ZERO_SUBSCRIPTION",
+    "acquisition_mode": "MANUAL_MONTHLY_DOWNLOAD_THEN_LOCAL_HASH",
+    "raw_source_publication": "PROHIBITED_BY_PROJECT_POLICY",
+    "raw_storage": "LOCAL_ONLY",
+    "whole_market_daily_store": false,
+    "automated_high_frequency_jpx_scraping": false,
+    "performance_publication_rights": "SEPARATE_CHECK_REQUIRED",
+    "roles": {
+      "start_price": {
+        "source": "TSE_MONTHLY_STOCK_PRICE_TABLE",
+        "period": "2026-09",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+        "row_scope": "HELD_SECURITIES_ONLY"
+      },
+      "end_price": {
+        "source": "TSE_MONTHLY_STOCK_PRICE_TABLE",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+        "row_scope": "HELD_SECURITIES_ONLY"
+      },
+      "benchmark": {
+        "source": "JPX_DIVIDEND_INCLUDED_INDEX_MONTHLY_ROI",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/indices/related/ratio/"
+      },
+      "action_detector": {
+        "source": "TSE_MONTHLY_STATISTICS_REPORT",
+        "period": "2026-10",
+        "locator": "https://www.jpx.co.jp/markets/statistics-equities/monthly/",
+        "ex_rights_locator": "https://www.jpx.co.jp/listing/others/ex-rights/index.html",
+        "absence_semantics": "NOT_PROOF_OF_NO_CASH_DIVIDEND"
+      },
+      "held_security_primary_evidence": {
+        "scope": "HELD_SECURITIES_ONLY",
+        "priority": [
+          "ISSUER_IR",
+          "TSE_LISTED_COMPANY_SEARCH_OR_TDNET",
+          "EDINET",
+          "JPX_RIGHTS_LISTING_INFO"
+        ],
+        "tdnet_overview": "https://www.jpx.co.jp/equities/listing/disclosure/tdnet/index.html",
+        "tdnet_public": "https://www.jpx.co.jp/listing/disclosure/01.html",
+        "edinet_api": "https://disclosure2dl.edinet-fsa.go.jp/guide/static/disclosure/WEEK0060.html"
+      }
+    }
+  }
 }
