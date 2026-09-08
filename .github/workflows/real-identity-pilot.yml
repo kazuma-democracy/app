@@ -23,41 +23,15 @@ jobs:
           cache: pip
       - run: python -m pip install -e '.[dev]'
       - run: python -m pytest -q
-      - name: Diagnose JPX request client
-        shell: bash
-        run: |
-          python - <<'PY'
-          import urllib.error
-          import urllib.request
-
-          url = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
-          cases = [
-              ("wa-fixed", {"User-Agent": "wa-commons-m1/0.1"}),
-              ("urllib-default", {}),
-              (
-                  "browser-like",
-                  {
-                      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36"
-                  },
-              ),
-          ]
-          for name, headers in cases:
-              req = urllib.request.Request(url, headers=headers)
-              try:
-                  with urllib.request.urlopen(req, timeout=30) as resp:
-                      resp.read(1)
-                      print(name, "status", resp.status, "content-type", resp.headers.get("Content-Type"), "final-url", resp.geturl())
-              except urllib.error.HTTPError as exc:
-                  print(name, "status", exc.code, "content-type", exc.headers.get("Content-Type"), "final-url", exc.geturl())
-              except Exception as exc:
-                  print(name, "exception", type(exc).__name__, str(exc))
-          PY
       - name: Run official-data 100-company pilot
+        if: github.event_name == 'workflow_dispatch'
         run: python scripts/run_real_identity_pilot_fixed.py artifacts/real-identity-pilot
       - name: Print report
+        if: github.event_name == 'workflow_dispatch'
         run: cat artifacts/real-identity-pilot/report.json
-      - uses: actions/upload-artifact@v4
+      - name: Publish live identity pilot artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
         with:
           name: real-identity-pilot
           path: |
