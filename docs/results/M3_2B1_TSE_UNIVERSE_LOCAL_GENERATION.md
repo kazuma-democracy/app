@@ -24,14 +24,12 @@ The operator is responsible for obtaining and retaining the applicable JPX sourc
 
 ETF/ETN, REIT, TOKYO PRO Market, foreign stocks, other market/product rows, and invalid in-scope rows are excluded and counted separately. Duplicate normalized security codes fail closed instead of being silently retained or deduplicated.
 
-The local row-level output is canonically ordered by normalized JPX security code and contains only the fields needed for the #53 handoff:
+The local row-level output is canonically ordered by normalized JPX security code. Each row preserves the existing `EntityRecord` identity/provenance envelope produced by `from_jpx_row()`, including the `JPX_SECURITY_CODE` identifier and its `SourceRef` (`source_key`, snapshot, source URL, retrieval timestamp, and adapter version). It also exposes two deterministic convenience fields needed by the #53 handoff:
 
-- WA canonical `entity_id` from the existing JPX identity convention;
 - normalized `security_code`;
-- JPX listed `canonical_name`;
 - normalized `market_segment` (`Prime`, `Standard`, or `Growth`).
 
-No EDINET/NTA/GLEIF enrichment, benchmark filtering, evidence screening, portfolio logic, or #53 work is included in #46.
+The existing envelope continues to carry the WA canonical `entity_id`, JPX listed `canonical_name`, jurisdiction/review fields, and identifier provenance. No EDINET/NTA/GLEIF enrichment, benchmark filtering, evidence screening, portfolio logic, or #53 work is included in #46.
 
 ## Public-safe manifest
 
@@ -45,9 +43,9 @@ Each local run also emits a separate manifest containing only non-row-level repr
 - explicit row-publication boundary;
 - Prime / Standard / Growth counts and total entity count;
 - exclusion counts by category;
-- SHA-256 of the canonical row-level semantic payload.
+- SHA-256 of the canonical row-level **semantic projection**.
 
-The public-safe manifest contains no company rows, listed company names, or individual security codes. The semantic hash allows two authorized local runs over the same source bytes/code to compare the derived universe without publishing the underlying rows.
+The public-safe manifest contains no company rows, listed company names, individual security codes, or per-row SourceRef data. The semantic projection contains only `entity_id`, normalized security code, listed canonical name, and normalized market segment; local transport/provenance details such as filename and retrieval timestamp are deliberately excluded from that semantic hash. This allows authorized local runs to compare the derived company universe without publishing the underlying rows or making the semantic identity depend on local path/timing metadata.
 
 ## Local reproduction
 
@@ -60,7 +58,7 @@ wa-commons build-jpx-universe <JPX_SNAPSHOT_FILE> <LOCAL_UNIVERSE_JSON> <PUBLIC_
   --retrieved-at <ISO8601_TIMESTAMP>
 ```
 
-`LOCAL_UNIVERSE_JSON` contains JPX-derived row-level data and must remain within the operator's authorized local workspace under the adopted free-site route. `PUBLIC_MANIFEST_JSON` is the non-row-level verification surface designed for public evidence/handoff.
+`LOCAL_UNIVERSE_JSON` contains JPX-derived row-level data and must remain within the operator's authorized local workspace under the adopted free-site route. `PUBLIC_MANIFEST_JSON` is the non-row-level verification surface designed for public evidence/handoff. The two output paths must be distinct; the writer fails before writing if the resolved paths are the same.
 
 ## Verification contract
 
@@ -69,10 +67,12 @@ CI uses only synthetic/minimal fixtures. It does not fetch JPX and does not publ
 - exact Prime / Standard / Growth inclusion;
 - ETF/ETN, REIT, PRO Market, foreign/other and invalid-row exclusion accounting;
 - canonical security-code ordering;
+- preservation of the existing JPX identifier `SourceRef` in the local row-level envelope;
 - input-order-independent semantic payload hash;
+- semantic-hash independence from local filename/retrieval-time provenance;
 - byte-level source SHA distinction;
 - duplicate security-code fail-closed behavior;
-- separation of local row output from the public-safe manifest;
+- separation of local row output from the public-safe manifest, including same-path rejection;
 - CLI production of both outputs from a local input path.
 
 A real operator run supplies the real snapshot hash, market counts, exclusion counts and semantic payload hash. Those values are intentionally not fabricated or inferred when the JPX source bytes are not present in the authorized local workspace.
