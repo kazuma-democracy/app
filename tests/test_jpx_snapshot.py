@@ -1,10 +1,15 @@
+import json
 from pathlib import Path
 
+from wa_commons.identity import jpx_snapshot
 from wa_commons.identity.jpx_snapshot import build_pilot, domestic_company_rows, read_jpx_rows
 
 
+HEADER = "日付,コード,銘柄名,市場・商品区分,33業種コード,33業種区分,17業種コード,17業種区分,規模コード,規模区分"
+
+
 def _write_fixture(path: Path) -> None:
-    lines = ["日付,コード,銘柄名,市場・商品区分,33業種コード,33業種区分,17業種コード,17業種区分,規模コード,規模区分"]
+    lines = [HEADER]
     # Mixed non-company rows that must be ignored.
     lines.append("20260430,1305,TEST ETF,ETF・ETN,-,-,-,-,-,-")
     lines.append("20260430,131A,TEST PRO,PRO Market,5250,情報・通信業,10,情報通信・サービスその他,-,-")
@@ -13,6 +18,26 @@ def _write_fixture(path: Path) -> None:
         market = "プライム（内国株式）" if i % 2 else "スタンダード（内国株式）"
         lines.append(f"20260430,{code},テスト企業{i},{market},2050,建設業,3,建設・資材,-,-")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8-sig")
+
+
+def _universe_rows() -> list[str]:
+    return [
+        "20260831,1003,成長テスト,グロース（内国株式）,5250,情報・通信業,10,情報通信・サービスその他,-,-",
+        "20260831,1001,主要テスト,プライム（内国株式）,2050,建設業,3,建設・資材,-,-",
+        "20260831,1002,標準テスト,スタンダード（内国株式）,3050,卸売業,9,商社・卸売,-,-",
+        "20260831,1305,ETF TEST,ETF・ETN,-,-,-,-,-,-",
+        "20260831,8951,REIT TEST,不動産投資信託（REIT）,-,-,-,-,-,-",
+        "20260831,131A,PRO TEST,PRO Market,5250,情報・通信業,10,情報通信・サービスその他,-,-",
+        "20260831,200A,FOREIGN TEST,プライム（外国株式）,5250,情報・通信業,10,情報通信・サービスその他,-,-",
+        "20260831,,MISSING CODE,プライム（内国株式）,2050,建設業,3,建設・資材,-,-",
+    ]
+
+
+def _write_universe_fixture(path: Path, rows: list[str] | None = None) -> None:
+    path.write_text(
+        "\n".join([HEADER, *(rows if rows is not None else _universe_rows())]) + "\n",
+        encoding="utf-8-sig",
+    )
 
 
 def test_domestic_filter_excludes_etf_and_pro_market(tmp_path):
@@ -39,3 +64,59 @@ def test_build_pilot_is_deterministic_and_limited_to_100(tmp_path):
     assert len(one["manifest"]["source_sha256"]) == 64
     assert one["entities"][0]["entity_id"] == "wa:org:jp:tse:2001"
     assert one["entities"][-1]["entity_id"] == "wa:org:jp:tse:2100"
+
+
+def test_build_universe_filters_and_emits_non_row_manifest(tmp_path):
+    fixture = tmp_path / "listed.csv"
+    _write_universe_fixture(fixture)
+
+    payload = jpx_snapshot.build_universe(
+        fixture,
+        snapshot="2026-08-31",
+        source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
+        retrieved_at="2026-09-08T00:00:00Z",
+    )
+
+    assert [row["security_code"] for row in payload["entities"]] == ["1001", "1002", "1003"]
+    assert [row["market_segment"] for row in payload["entities"]] == [
+        "Prime",
+        "Standard",
+        "Growth",
+    ]
+    manifest = payload["manifest"]
+    assert manifest["rights_mode"] == "local_generation_only"
+    assert manifest["market_counts"] == {"Prime": 1, "Standard": 1, "Growth": 1}
+    assert manifest["entity_count"] == 3
+    assert manifest["exclusion_counts"] == {
+        "etf_etn": 1,
+        "reit": 1,
+        "tokyo_pro_market": 1,
+        "other_market": 1,
+        "invalid_row": 1,
+    }
+    assert len(manifest["source_sha256"]) == 64
+    assert len(manifest["semantic_payload_sha256"]) == 64
+    encoded_manifest = json.dumps(manifest, ensure_ascii=False)
+    assert "entities" not in manifest
+    assert "主要テスト" not in encoded_manifest
+    assert "1001" not in encoded_manifest
+
+
+def test_universe_semantic_hash_is_order_independent(tmp_path):
+    first = tmp_path / "first.csv"
+    second = tmp_path / "second.csv"
+    rows = _universe_rows()
+    _write_universe_fixture(first, rows)
+    _write_universe_fixture(second, list(reversed(rows)))
+    kwargs = dict(
+        snapshot="2026-08-31",
+        source_url="https://www.jpx.co.jp/markets/statistics-equities/misc/01.html",
+        retrieved_at="2026-09-08T00:00:00Z",
+    )
+
+    one = jpx_snapshot.build_universe(first, **kwargs)
+    two = jpx_snapshot.build_universe(second, **kwargs)
+
+    assert one["entities"] == two["entities"]
+    assert one["manifest"]["semantic_payload_sha256"] == two["manifest"]["semantic_payload_sha256"]
+    assert one["manifest"]["source_sha256"] != two["manifest"]["source_sha256"]
