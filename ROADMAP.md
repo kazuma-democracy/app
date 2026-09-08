@@ -213,9 +213,9 @@ Use mature portfolio libraries where possible. Do not invent an optimizer unless
 
 ### Workstream 3E — Market-return ingestion — OPEN
 
-**#78 ? M3.3c0:** preregister the zero-purchase monthly evaluation window, free JPX source roles, return basis, rights boundary, and fail-closed states before market-return ingestion starts.
+**#78 — M3.3c0:** preregister the zero-purchase monthly evaluation window, free JPX source roles, return basis, rights boundary, and fail-closed states before market-return ingestion starts.
 
-**#56 ? M3.3c:** consume completed #78 and implement the bounded monthly market-return/corporate-action ingestion artifact. Missing held-security prices, dividends, identities, or action evidence fail closed.
+**#56 — M3.3c:** consume completed #78 and implement the bounded monthly market-return/corporate-action ingestion artifact. Missing held-security prices, dividends, identities, or action evidence fail closed.
 
 Market-return ingestion remains separate from benchmark membership/mapping and constructor logic because each has independent data, licensing and failure modes.
 
@@ -589,7 +589,7 @@ Financial benchmark path:
                  └→ #50 Benchmark snapshot + TSE mapping ← #53
                                 ↓
                            #78 Free monthly preregistration
-                                         ?
+                                         ↓
                            #56 Market returns
 
 #44 + #49 + #50 + #55 + #56
@@ -660,7 +660,7 @@ Current near-term issues after M2 completion:
 - **#47 — READY after #45:** one OSS/constructor design decision; implementation and returns remain separate.
 - **#49 — READY after #47:** one constructor implementation with fixed fixtures/invariants.
 - **#50 — READY after #45/#53:** narrowed to benchmark constituent/weight ingestion + canonical TSE mapping; return history was split out.
-- **#78 ? READY after #50:** preregister the zero-cost monthly evaluation/source/return contract; **#56 ? READY only after #78:** implement that contract without inventing methodology.
+- **#78 — READY after #50:** preregister the zero-cost monthly evaluation/source/return contract; **#56 — READY only after #78:** implement that contract without inventing methodology.
 - **#51 — READY only after all prerequisites:** pure integration/evaluation; methodology changes are explicit blockers.
 
 Phases 4–9 are **not yet worker-ready as whole tasks**. `docs/PURCHASE_ROUTER_PROPOSAL.md` is likewise a preregistered future design, not a worker assignment. Before execution, each workstream must be converted into Issue-sized contracts using the checklist above; agents should never be assigned “do Phase 4”, “build Peace Router”, “build the Books Router”, “internationalize WA Commons”, or similar roadmap-sized prompts.
@@ -699,7 +699,7 @@ M2 is complete. The nearest bounded work now belongs to M3 and follows the exist
 1. **#46 — M3.2b1:** canonical TSE domestic listed-company universe enumeration.
 2. **#45 — M3.2a:** benchmark research/preregistration may proceed independently in parallel.
 3. After #46, **#53** builds the TSE-wide conservative identity artifact; completed #42/#43 semantics then scale through **#54 → #55**.
-4. After #45, **#47 ? #49** handles the bounded paper-only constructor path; **#50** waits for both #45 and #53; **#78** follows #50 to preregister the free monthly evaluation contract; **#56** follows completed #78.
+4. After #45, **#47 → #49** handles the bounded paper-only constructor path; **#50** waits for both #45 and #53; **#78** follows #50 to preregister the free monthly evaluation contract; **#56** follows completed #78.
 5. **#51** remains the pure integrated paper evaluation only after #44, #49, #50, #55 and #56 are complete.
 
 The historical M1.1 JPX retrieval URL was observed returning 404 during #44 acceptance. #44 preserved the accepted M1.1 artifact as a hash-verified display projection rather than changing M1 source code. Any live M1.1 source-maintenance work should remain a separately scoped maintenance issue and must not be confused with #46's new canonical TSE-universe task.
