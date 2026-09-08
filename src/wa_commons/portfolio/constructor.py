@@ -64,7 +64,7 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ValueError("unsupported exclude_weight")
 
     identity = config.get("identity", {})
-    if identity.get("unmapped_behavior") != "retain_unscreened_at_benchmark_reference":
+    if identity.get("unmapped_behavior") != "retain_unscreened_no_tilt":
         raise ValueError("unsupported unmapped behavior")
     if identity.get("disputed_behavior") != "fail_closed":
         raise ValueError("unsupported disputed behavior")
