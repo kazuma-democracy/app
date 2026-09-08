@@ -10,12 +10,12 @@ Build useful, voluntary software where repeated use can create a measurable peac
 
 The first proof vehicle is **Experiment 001 — Peace Capital**.
 
-## Current position — 2026-08-31
+## Current position — 2026-09-08
 
 - **M1 — Reproducible Evidence Graph: COMPLETE.** Measured clean reproduction is recorded in `docs/M1_ACCEPTANCE.md`.
-- **M2 — Explainable company screener: IN PROGRESS.** The versioned user-policy language and deterministic evaluator are implemented; the remaining bounded path is #42 → #43 → #44.
+- **M2 — Explainable company screener: COMPLETE.** #42 coverage, #43 deterministic company screening and #44 static explainability report are complete. Measured #44 acceptance is recorded in `docs/results/M2_2C_EXPLAINABLE_SCREENER_V01.md`; `NONE` remains explicitly distinct from PASS/clean/safe.
 - **M3 — Peace Capital paper portfolio: IN PROGRESS.** The preregistered evaluation specification is complete. The product-universe strategy is now **100-company engineering cohort → canonical TSE domestic listed-company universe**; the benchmark is a separately selected subset/view used for financial evaluation rather than an intermediate coverage universe.
-- **Phase 5–6 future design:** a Purchase Route Router is preregistered as the first second-domain candidate. The current product strategy is **distribution-first / integration-first**: begin where users already browse or compare products, use thin browser/share/URL handoffs to invoke WA Commons, test books first, then electronics/PC parts, and treat standalone WA product search as an optional later client rather than the MVP acquisition surface. The first public purchasing experiment is also **local-first / serverless-friendly / ship-small**: core routing should not require an always-on WA Commons application server, v0 is affiliate-free, bounded retailer coverage is acceptable when explicit, and the first release should expose documented contribution paths so verified coverage can grow as a commons. See `docs/PURCHASE_ROUTER_PROPOSAL.md`. This is future design only and does not displace current M2/M3 work or waive Phase 5/6 gates.
+- **Phase 5–6 future design:** a Purchase Route Router is preregistered as the first second-domain candidate. The current product strategy is **distribution-first / integration-first**: begin where users already browse or compare products, use thin browser/share/URL handoffs to invoke WA Commons, test books first, then electronics/PC parts, and treat standalone WA product search as an optional later client rather than the MVP acquisition surface. The first public purchasing experiment is also **local-first / serverless-friendly / ship-small**: core routing should not require an always-on WA Commons application server, v0 is affiliate-free, bounded retailer coverage is acceptable when explicit, and the first release should expose documented contribution paths so verified coverage can grow as a commons. See `docs/PURCHASE_ROUTER_PROPOSAL.md`. This is future design only and does not displace current M3 work or waive Phase 5/6 gates.
 - **Phase 0 governance cleanup remains open.** #8 ideological-bias red-team and #9 Japanese/English terminology review are still required and are not considered completed by later technical progress.
 
 The project intentionally allows preparatory specification work for a later phase when that work reduces benchmark gaming or implementation ambiguity. This does not waive earlier phase exit criteria or any real-money gate.
@@ -101,7 +101,7 @@ The evidence foundation exists. This does **not** authorize real-money trading.
 
 ---
 
-## Phase 2 — User policy and classification engine — IN PROGRESS
+## Phase 2 — User policy and classification engine — COMPLETE
 
 ### Purpose
 Let different users apply different peace-related values to a shared evidence layer without creating one official WA Commons moral score.
@@ -118,14 +118,14 @@ Policy v0.1 intentionally emits `EXCLUDE / WATCH / NONE`; it does not infer `PAS
 
 **Issue:** #5 — completed.
 
-### Workstream 2B — Deterministic screening — IN PROGRESS
-The claim-level evaluator exists. The remaining milestone work is deliberately split:
+### Workstream 2B — Deterministic screening — DONE
+The bounded M2 implementation chain is complete:
 
-1. **#42 — M2.2a:** build the 100-company evidence coverage matrix.
-2. **#43 — M2.2b:** run the same evidence snapshot through the current user-policy profiles and produce deterministic company-level research views.
-3. **#44 — M2.2c:** build the minimal non-developer-readable explainable screener report.
+1. **#42 — M2.2a:** 100-company evidence coverage matrix — completed.
+2. **#43 — M2.2b:** same-snapshot user-policy evaluation and deterministic company-level research views — completed.
+3. **#44 — M2.2c:** minimal non-developer-readable explainable screener report — completed with measured acceptance in `docs/results/M2_2C_EXPLAINABLE_SCREENER_V01.md`.
 
-Requirements remain:
+The completed implementation preserves these requirements:
 - no consequential decision without an explicit rule;
 - every non-NONE outcome explains which rule/evidence fired;
 - policy and evidence versions are recorded;
@@ -133,8 +133,10 @@ Requirements remain:
 - missing coverage does not become clean/safe/PASS;
 - LLMs may assist extraction/review but must not become the hidden source of truth.
 
+The current fixed 100-company snapshot is also an explicit negative result: the current M1 canonical graph has no confirmed corporate-number-mapped claim inside the cohort, so the three current example policies all produce `NONE` for all 100 companies. The report exposes `no_match`, `unresolved_identity` and `not_integrated` coverage states rather than turning that absence into a positive moral classification.
+
 ### Workstream 2C — Evidence cards — DONE as a reusable component
-Evidence Cards already expose:
+Evidence Cards expose:
 - entity;
 - relevant claim;
 - source/provenance;
@@ -145,14 +147,22 @@ Evidence Cards already expose:
 - policy-layer separation;
 - challenge/correction path.
 
-The remaining M2 work is to connect these components across the complete fixed 100-company pilot in #44.
+#44 reuses this component in the static 100-company screener instead of creating a second Evidence model.
 
-### Milestone M2 — Explainable company screener — NOT YET COMPLETE
-Exit condition:
+### Milestone M2 — Explainable company screener — COMPLETE
+Exit condition met:
 A non-developer can choose a policy and understand the visible decision and evidence state for every company in the fixed 100-company pilot, with at least two meaningfully different profiles evaluated against the same evidence snapshot.
 
-### Gate to full M3 integration
-Complete #42 → #43 → #44. Preparatory M3 specification/research and TSE-universe work may proceed in parallel where they do not depend on unfinished M2 behavior.
+Measured evidence:
+- all 100 companies have a human-readable report section;
+- all three current example profiles are compared on the same deterministic #43 snapshot;
+- visible `NONE` results retain incomplete/unresolved coverage rather than becoming PASS;
+- report/Evidence/coverage/screening inputs and outputs are hash-pinned;
+- challenge/correction paths are visible;
+- no hidden moral/peace/safety score is introduced.
+
+### Gate to full M3 integration — PASSED
+#42 → #43 → #44 is complete. M3 work may now consume the completed M2 coverage and policy-screening semantics according to the existing dependency graph. This does **not** authorize real-money trading.
 
 ---
 
@@ -474,7 +484,7 @@ This stage is where retailers such as electronics specialists, marketplaces, man
 - do not build a first-party product catalog or central proxy merely to compensate for a failed integration path;
 - do not postpone the first public release merely to chase broad retailer coverage when a bounded, honest vertical slice can prove the mechanism;
 - community growth must add verified Evidence/routes through reviewable contribution paths rather than unreviewed judgments;
-- the current M2/M3 issue order remains authoritative until those gates are complete.
+- the current M3 issue order remains authoritative until those gates are complete.
 
 ### Milestone M6 — Two-domain proof
 The same Peace Router core serves two different decision domains, and the second-domain experiment demonstrates direct user utility without duplicating the Evidence/Policy/audit stack, depending on one proprietary shopping surface, or requiring private central infrastructure for the core public mechanism.
@@ -631,13 +641,13 @@ An Issue is ready for autonomous assignment only when all of these are true:
 
 If an Issue fails this checklist, split or respec it **before** handing it to an autonomous worker. Do not compensate for an oversized task by giving the model a giant prompt or repeatedly relaunching it.
 
-## Task-granularity audit — 2026-08-30
+## Task-granularity audit — 2026-09-08
 
-Current near-term issues after respec:
+Current near-term issues after M2 completion:
 
-- **#42 — READY:** one coverage artifact; state semantics and tests are explicit. Existing autonomous-worker contract is suitably bounded.
-- **#43 — READY after #42:** one deterministic screening artifact; policy/evidence traceability is explicit.
-- **#44 — READY after #43:** one minimal explainability report/milestone review; broad production UI is explicitly excluded.
+- **#42 — COMPLETE:** 100-company coverage artifact and explicit coverage-state semantics are merged.
+- **#43 — COMPLETE:** deterministic 100-company screening artifact and policy/evidence traceability are merged.
+- **#44 — COMPLETE with this M2 exit change:** static explainability report and measured milestone review are complete; broad production UI remains excluded.
 - **#45 — READY research task:** one benchmark decision record; no implementation/backtest is permitted.
 - **#46 — READY:** narrowed to canonical JPX/TSE universe enumeration only. Identity enrichment was split out.
 - **#53 — READY after #46:** one TSE-wide identity artifact; source-format failures have explicit stop behavior.
@@ -680,14 +690,14 @@ WA Commons should **not**:
 
 ## Immediate next work
 
-The nearest bounded sequence remains:
+M2 is complete. The nearest bounded work now belongs to M3 and follows the existing dependency graph rather than reopening M2:
 
-1. **#42 — M2.2a:** 100-company evidence coverage matrix.
-2. **#43 — M2.2b:** deterministic 100-company policy screening.
-3. **#44 — M2.2c:** explainable screener report and explicit M2 exit review.
+1. **#46 — M3.2b1:** canonical TSE domestic listed-company universe enumeration.
+2. **#45 — M3.2a:** benchmark research/preregistration may proceed independently in parallel.
+3. After #46, **#53** builds the TSE-wide conservative identity artifact; completed #42/#43 semantics then scale through **#54 → #55**.
+4. After #45, **#47 → #49** handles the bounded paper-only constructor path; **#50** waits for both #45 and #53; **#56** follows #50.
+5. **#51** remains the pure integrated paper evaluation only after #44, #49, #50, #55 and #56 are complete.
 
-The canonical TSE scale path **#46 → #53** may proceed independently of #45 where capacity permits. After the 100-company semantics are complete, reuse them as **#54 → #55** over the full TSE universe.
-
-In parallel only where dependencies allow, **#45** may research and preregister the first Japan-equity benchmark. Portfolio constructor work (#47 → #49), benchmark mapping (#50), market-return ingestion (#56) and end-to-end evaluation (#51) remain separate bounded issues.
+The historical M1.1 JPX retrieval URL was observed returning 404 during #44 acceptance. #44 preserved the accepted M1.1 artifact as a hash-verified display projection rather than changing M1 source code. Any live M1.1 source-maintenance work should remain a separately scoped maintenance issue and must not be confused with #46's new canonical TSE-universe task.
 
 The Purchase Route Router remains **future preregistered design only**. It does not enter the immediate work queue until the relevant Phase 5/6 gates are met or a separately authorized bounded source/rights/integration research issue is created.
