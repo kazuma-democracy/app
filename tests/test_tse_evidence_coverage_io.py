@@ -26,7 +26,12 @@ def test_writer_keeps_row_level_matrix_local_and_public_output_aggregate_only(tm
                 "source_id": "jp-mod-procurement",
                 "category": "military_contract",
                 "integration_state": "integrated",
-                "provenance": {"source_sha256": "source-sha"},
+                "provenance": {
+                    "source_sha256": "source-sha",
+                    "adapter_version": "0.1",
+                    "pilot_matched_entity_count": 0,
+                    "measurement_note": "stale fixed-100 pilot measurement",
+                },
             }
         ],
         "matrix": {
@@ -48,12 +53,23 @@ def test_writer_keeps_row_level_matrix_local_and_public_output_aggregate_only(tm
     local = json.loads(local_path.read_text(encoding="utf-8"))
     public = json.loads(public_path.read_text(encoding="utf-8"))
     assert local == payload
-    assert public == {
-        "manifest": payload["manifest"],
-        "source_catalog": payload["source_catalog"],
-    }
+    assert public["manifest"] == payload["manifest"]
+    assert public["source_catalog"] == [
+        {
+            "source_id": "jp-mod-procurement",
+            "category": "military_contract",
+            "integration_state": "integrated",
+            "provenance": {
+                "source_sha256": "source-sha",
+                "adapter_version": "0.1",
+            },
+        }
+    ]
     assert "matrix" not in public
-    assert "wa:org:jp:tse:1001" not in public_path.read_text(encoding="utf-8")
+    public_text = public_path.read_text(encoding="utf-8")
+    assert "wa:org:jp:tse:1001" not in public_text
+    assert "pilot_matched_entity_count" not in public_text
+    assert "measurement_note" not in public_text
 
 
 def test_writer_rejects_same_local_and_public_path(tmp_path):
