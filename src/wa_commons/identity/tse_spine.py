@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Iterable, Mapping
 
 from .enrich import enrich_entity_batch, strong_id
@@ -38,6 +40,54 @@ def _entity_from_dict(value: Mapping[str, object]) -> EntityRecord:
         review_state=str(value.get("review_state", "CONFIRMED")),
         review_reason=value.get("review_reason"),
     )
+
+
+def _semantic_entity(entity: EntityRecord) -> dict:
+    identifiers = [
+        {
+            "scheme": identifier.scheme,
+            "value": identifier.value,
+            "source": {
+                "source": identifier.source.source,
+                "snapshot": identifier.source.snapshot,
+                "url": identifier.source.url,
+                "adapter_version": identifier.source.adapter_version,
+            },
+        }
+        for identifier in entity.identifiers
+    ]
+    identifiers.sort(
+        key=lambda item: (
+            item["scheme"],
+            item["value"],
+            item["source"]["source"],
+            item["source"]["snapshot"],
+            item["source"]["url"],
+            item["source"]["adapter_version"],
+        )
+    )
+    return {
+        "entity_id": entity.entity_id,
+        "canonical_name": entity.canonical_name,
+        "jurisdiction": entity.jurisdiction,
+        "aliases": sorted(entity.aliases),
+        "identifiers": identifiers,
+        "addresses": sorted(entity.addresses),
+        "review_state": entity.review_state,
+        "review_reason": entity.review_reason,
+    }
+
+
+def _semantic_identity_sha256(entities: list[EntityRecord]) -> str:
+    payload = [_semantic_entity(entity) for entity in entities]
+    payload.sort(key=lambda item: item["entity_id"])
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def build_tse_identity_spine(
@@ -87,6 +137,7 @@ def build_tse_identity_spine(
         "mapped_count": len(mapped),
         "unresolved_count": len(unresolved),
         "disputed_count": len(disputed),
+        "semantic_identity_sha256": _semantic_identity_sha256(enriched),
         "sources": {key: dict(value) for key, value in sorted(source_metadata.items())},
     }
     return {
