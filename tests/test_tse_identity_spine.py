@@ -1,5 +1,7 @@
 import copy
+import json
 
+from wa_commons.identity import tse_spine
 from wa_commons.identity.models import SourceRef
 from wa_commons.identity.tse_spine import build_tse_identity_spine
 
@@ -146,3 +148,28 @@ def test_manifest_reports_identifier_and_validation_coverage():
     assert manifest["nta_validated_count"] == 1
     assert manifest["lei_count"] == 1
     assert manifest["sources"] == metadata()
+
+
+def test_writer_keeps_row_level_identity_local_and_public_output_manifest_only(tmp_path):
+    payload = build_tse_identity_spine(
+        {
+            "manifest": {"snapshot": "20260831", "source_sha256": "jpx-sha", "semantic_payload_sha256": "universe-sha"},
+            "entities": [universe_entity("1001", "Private Row Co")],
+        },
+        edinet_rows=[],
+        edinet_source=src("EDINET"),
+        code_commit="deadbeef",
+        source_metadata=metadata(),
+    )
+    local_path = tmp_path / "identity-local.json"
+    public_path = tmp_path / "identity-manifest.json"
+
+    tse_spine.write_tse_identity_spine(payload, local_path, public_path)
+
+    local = json.loads(local_path.read_text(encoding="utf-8"))
+    public = json.loads(public_path.read_text(encoding="utf-8"))
+    assert local["entities"][0]["canonical_name"] == "Private Row Co"
+    assert public == payload["manifest"]
+    assert "entities" not in public
+    assert "Private Row Co" not in public_path.read_text(encoding="utf-8")
+    assert "1001" not in public_path.read_text(encoding="utf-8")
