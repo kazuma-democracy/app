@@ -2,7 +2,7 @@ import csv
 import io
 import zipfile
 
-from scripts.run_tse_identity_spine import read_gleif_golden_copy_zip
+from scripts import run_real_identity_pilot
 
 
 def test_gleif_golden_copy_parser_keeps_only_exact_japanese_registration_ids(tmp_path):
@@ -39,7 +39,10 @@ def test_gleif_golden_copy_parser_keeps_only_exact_japanese_registration_ids(tmp
     with zipfile.ZipFile(zip_path, "w") as zf:
         zf.writestr("golden-copy.csv", buffer.getvalue().encode("utf-8"))
 
-    rows = read_gleif_golden_copy_zip(zip_path, {"1111111111111"})
+    rows = run_real_identity_pilot.read_gleif_golden_copy_zip(
+        zip_path,
+        {"1111111111111"},
+    )
 
     assert rows == [
         {
