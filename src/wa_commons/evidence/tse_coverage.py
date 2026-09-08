@@ -191,3 +191,28 @@ def write_tse_coverage(
         json.dumps(public_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+
+
+def run_tse_coverage_local(
+    *,
+    identity_path: str | Path,
+    coverage_config_path: str | Path,
+    mod_observations_path: str | Path,
+    local_output: str | Path,
+    public_output: str | Path,
+    code_commit: str,
+) -> dict:
+    """Build #54 coverage only from operator-supplied local artifacts."""
+    identity = json.loads(Path(identity_path).read_text(encoding="utf-8"))
+    config = json.loads(Path(coverage_config_path).read_text(encoding="utf-8"))
+    mod_observations = json.loads(Path(mod_observations_path).read_text(encoding="utf-8"))
+
+    linked = link_mod_procurement_observations(identity, mod_observations)
+    result = build_tse_coverage(
+        identity,
+        source_catalog=config["source_catalog"],
+        linked_observations=linked,
+        code_commit=code_commit,
+    )
+    write_tse_coverage(result, local_output, public_output)
+    return result
