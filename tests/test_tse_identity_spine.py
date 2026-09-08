@@ -137,7 +137,11 @@ def test_manifest_reports_identifier_and_validation_coverage():
         ],
         nta_source=src("NTA"),
         gleif_rows=[
-            {"LEI": "549300EXAMPLE0000001", "Entity.RegistrationAuthority.RegistrationAuthorityEntityID": "1111111111111"}
+            {
+                "LEI": "549300EXAMPLE0000001",
+                "Entity.RegistrationAuthority.RegistrationAuthorityID": "RA001075",
+                "Entity.RegistrationAuthority.RegistrationAuthorityEntityID": "1111111111111",
+            }
         ],
         gleif_source=src("GLEIF"),
         code_commit="deadbeef",
