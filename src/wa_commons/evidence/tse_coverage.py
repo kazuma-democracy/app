@@ -6,6 +6,7 @@ from typing import Iterable, Mapping
 from .coverage import build_coverage_matrix, canonical_coverage_sha256
 
 TSE_COVERAGE_ARTIFACT_VERSION = "m3-2d-tse-coverage-v0.1"
+MOD_SOURCE_ID = "jp-mod-procurement"
 
 
 def _corporate_number_values(entity: Mapping[str, object]) -> set[str]:
@@ -41,6 +42,39 @@ def _coverage_entities(identity: Mapping[str, object]) -> list[dict[str, object]
             entity["review_state"] = "UNRESOLVED"
         entities.append(entity)
     return entities
+
+
+def link_mod_procurement_observations(
+    identity: Mapping[str, object],
+    observations: Iterable[Mapping[str, object]],
+) -> list[dict[str, str]]:
+    """Link existing MOD observations to canonical TSE entities by exact corporate number only."""
+    by_corporate_number: dict[str, str] = {}
+    duplicates: set[str] = set()
+    for entity in identity.get("entities", []):
+        entity_id = str(entity.get("entity_id", "")).strip()
+        numbers = _corporate_number_values(entity)
+        if not entity_id or len(numbers) != 1:
+            continue
+        number = next(iter(numbers))
+        if number in by_corporate_number:
+            duplicates.add(number)
+        else:
+            by_corporate_number[number] = entity_id
+    for number in duplicates:
+        by_corporate_number.pop(number, None)
+
+    linked: list[dict[str, str]] = []
+    for observation in observations:
+        if str(observation.get("identity_decision", "")).strip() != "AUTO_LINK":
+            continue
+        number = str(observation.get("corporate_number", "")).strip()
+        if len(number) != 13 or not number.isdigit():
+            continue
+        entity_id = by_corporate_number.get(number)
+        if entity_id:
+            linked.append({"source_id": MOD_SOURCE_ID, "entity_id": entity_id})
+    return linked
 
 
 def _state_counts_by_source(matrix: Mapping[str, object]) -> dict[str, dict[str, int]]:
