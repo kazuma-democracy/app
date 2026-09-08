@@ -115,3 +115,34 @@ def test_semantic_identity_hash_ignores_input_order_and_retrieval_time():
     second_result = build_tse_identity_spine(second, **kwargs)
 
     assert first_result["manifest"]["semantic_identity_sha256"] == second_result["manifest"]["semantic_identity_sha256"]
+
+
+def test_manifest_reports_identifier_and_validation_coverage():
+    universe = {
+        "manifest": {"snapshot": "20260831", "source_sha256": "jpx-sha", "semantic_payload_sha256": "universe-sha"},
+        "entities": [universe_entity("1001", "Mapped Co"), universe_entity("1002", "Unresolved Co")],
+    }
+    result = build_tse_identity_spine(
+        universe,
+        edinet_rows=[
+            {"証券コード": "10010", "ＥＤＩＮＥＴコード": "E10001", "提出者法人番号": "1111111111111"}
+        ],
+        edinet_source=src("EDINET"),
+        nta_rows=[
+            {"法人番号": "1111111111111", "商号又は名称": "Mapped Co株式会社", "国内所在地（都道府県市区町村）": "東京都"}
+        ],
+        nta_source=src("NTA"),
+        gleif_rows=[
+            {"LEI": "549300EXAMPLE0000001", "Entity.RegistrationAuthority.RegistrationAuthorityEntityID": "1111111111111"}
+        ],
+        gleif_source=src("GLEIF"),
+        code_commit="deadbeef",
+        source_metadata=metadata(),
+    )
+
+    manifest = result["manifest"]
+    assert manifest["edinet_count"] == 1
+    assert manifest["corporate_number_count"] == 1
+    assert manifest["nta_validated_count"] == 1
+    assert manifest["lei_count"] == 1
+    assert manifest["sources"] == metadata()
