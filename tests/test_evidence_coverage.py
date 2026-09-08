@@ -59,6 +59,18 @@ def test_unresolved_identity_takes_precedence_over_no_match():
     assert result["rows"][0]["state"] == "unresolved_identity"
 
 
+def test_missing_identity_review_state_is_not_assumed_confirmed():
+    _, build, _ = coverage_api()
+    result = build(
+        entities=[{"entity_id": "e1", "canonical_name": "e1"}],
+        sources=["integrated-a"],
+        integrated_sources={"integrated-a"},
+        observations=[{"source_id": "integrated-a", "entity_id": "e1"}],
+        unknown_sources=set(),
+    )
+    assert result["rows"][0]["state"] == "unresolved_identity"
+
+
 def test_source_unknown_takes_precedence_over_no_match():
     _, build, _ = coverage_api()
     result = build(
