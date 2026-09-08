@@ -183,6 +183,25 @@ def build_universe(
     }
 
 
+def write_universe(
+    payload: dict,
+    local_output: str | Path,
+    public_manifest: str | Path,
+) -> None:
+    local_path = Path(local_output)
+    manifest_path = Path(public_manifest)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    local_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    manifest_path.write_text(
+        json.dumps(payload["manifest"], ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def build_pilot(
     path: str | Path,
     *,
