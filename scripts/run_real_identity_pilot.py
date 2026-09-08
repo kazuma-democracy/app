@@ -17,6 +17,7 @@ from wa_commons.identity.enrich import enrich_entity_batch, strong_id
 from wa_commons.identity.jpx import from_jpx_row
 from wa_commons.identity.jpx_snapshot import domestic_company_rows, read_jpx_rows
 from wa_commons.identity.models import SourceRef
+from wa_commons.identity.tse_spine import build_tse_identity_spine, write_tse_identity_spine
 
 JPX_URL = "https://www.jpx.co.jp/markets/statistics-equities/misc/tvdivq0000001vg2-att/data_j.xls"
 EDINET_URL = "https://disclosure2dl.edinet-fsa.go.jp/searchdocument/codelist/Edinetcode.zip"
@@ -160,6 +161,134 @@ def read_gleif_golden_copy_zip(zip_path: Path, targets: set[str]) -> list[dict[s
                         }
                     )
     return output
+
+
+def _corporate_numbers_from_identity_payload(payload: dict) -> set[str]:
+    numbers: set[str] = set()
+    for entity in payload.get("entities", []):
+        if entity.get("review_state") == "DISPUTED":
+            continue
+        values = {
+            str(identifier.get("value", "")).strip()
+            for identifier in entity.get("identifiers", [])
+            if identifier.get("scheme") == "JP_CORPORATE_NUMBER"
+            and str(identifier.get("value", "")).strip()
+        }
+        if len(values) == 1:
+            numbers.update(values)
+    return numbers
+
+
+def run_tse_identity_spine_local(
+    universe_path: Path,
+    edinet_zip: Path,
+    nta_zip: Path,
+    gleif_zip: Path,
+    local_output: Path,
+    public_manifest: Path,
+    *,
+    code_commit: str,
+    retrieved_at: str,
+    edinet_snapshot: str,
+    nta_snapshot: str,
+    gleif_snapshot: str,
+    edinet_url: str,
+    nta_url: str,
+    gleif_url: str,
+) -> dict:
+    """Enrich a local #46 TSE universe using operator-supplied official snapshots."""
+    universe_path = Path(universe_path)
+    edinet_zip = Path(edinet_zip)
+    nta_zip = Path(nta_zip)
+    gleif_zip = Path(gleif_zip)
+
+    universe = json.loads(universe_path.read_text(encoding="utf-8"))
+    edinet_rows = read_edinet_zip(edinet_zip)
+    edinet_source = SourceRef(
+        "EDINET",
+        edinet_zip.name,
+        edinet_snapshot,
+        edinet_url,
+        retrieved_at,
+        "0.3",
+    )
+
+    edinet_only = build_tse_identity_spine(
+        universe,
+        edinet_rows=edinet_rows,
+        edinet_source=edinet_source,
+        code_commit=code_commit,
+        source_metadata={
+            "edinet": {
+                "source": "EDINET",
+                "source_file": edinet_zip.name,
+                "snapshot": edinet_snapshot,
+                "url": edinet_url,
+                "sha256": sha256(edinet_zip),
+                "rights_status": "review_required",
+            }
+        },
+    )
+    corporate_numbers = _corporate_numbers_from_identity_payload(edinet_only)
+
+    nta_rows = nta_rows_for_targets(nta_zip, corporate_numbers)
+    gleif_rows = read_gleif_golden_copy_zip(gleif_zip, corporate_numbers)
+    nta_source = SourceRef(
+        "NTA",
+        nta_zip.name,
+        nta_snapshot,
+        nta_url,
+        retrieved_at,
+        "0.2",
+    )
+    gleif_source = SourceRef(
+        "GLEIF",
+        gleif_zip.name,
+        gleif_snapshot,
+        gleif_url,
+        retrieved_at,
+        "0.2",
+    )
+    source_metadata = {
+        "edinet": {
+            "source": "EDINET",
+            "source_file": edinet_zip.name,
+            "snapshot": edinet_snapshot,
+            "url": edinet_url,
+            "sha256": sha256(edinet_zip),
+            "rights_status": "review_required",
+        },
+        "gleif": {
+            "source": "GLEIF",
+            "source_file": gleif_zip.name,
+            "snapshot": gleif_snapshot,
+            "url": gleif_url,
+            "sha256": sha256(gleif_zip),
+            "registration_authority": "RA001075",
+            "license": "CC0-1.0",
+        },
+        "nta": {
+            "source": "NTA",
+            "source_file": nta_zip.name,
+            "snapshot": nta_snapshot,
+            "url": nta_url,
+            "sha256": sha256(nta_zip),
+            "rights_status": "review_required",
+        },
+    }
+    payload = build_tse_identity_spine(
+        universe,
+        edinet_rows=edinet_rows,
+        edinet_source=edinet_source,
+        nta_rows=nta_rows,
+        nta_source=nta_source,
+        gleif_rows=gleif_rows,
+        gleif_source=gleif_source,
+        code_commit=code_commit,
+        source_metadata=source_metadata,
+    )
+    write_tse_identity_spine(payload, local_output, public_manifest)
+    return payload
 
 
 def gleif_rows_for_targets(targets: set[str]) -> list[dict[str, str]]:
