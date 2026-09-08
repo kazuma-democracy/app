@@ -15,7 +15,7 @@ The benchmark remains `JPX:TOPIX_TOTAL_RETURN:6000`. This task collects constitu
 - CSV: `https://www.jpx.co.jp/automation/markets/indices/topix/files/topixweight_j.csv`
 - JPX publication rule: the component-weight list is updated after 16:20 JST on the final business day of the following month.
 
-Never infer readiness from the calendar alone. The downloaded CSV must itself contain the expected effective date.
+Never infer readiness from the calendar alone. The downloaded CSV must itself contain the expected effective date. The initial #50 acceptance pins 2026-07-31 because it was the latest official public snapshot reproducible on 2026-09-08; this does not authorize silently rolling the canonical snapshot forward.
 
 ## Local-AI task name
 
@@ -23,10 +23,10 @@ Never infer readiness from the calendar alone. The downloaded CSV must itself co
 
 ## Inputs
 
-- expected effective date, e.g. `2026-08-31`;
+- expected effective date; the first accepted snapshot is `2026-07-31`; later runs must pin a new date explicitly;
 - canonical #53 identity artifact;
 - repository checkout at a verified commit;
-- config `configs/m3-3b-topix-benchmark-v0.2.json` for the first pinned snapshot.
+- config `configs/m3-3b-topix-benchmark-v0.2.json` for the first accepted snapshot (`2026-07-31`).
 
 ## Procedure
 

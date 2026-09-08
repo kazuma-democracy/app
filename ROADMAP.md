@@ -197,10 +197,10 @@ The product universe and the financial benchmark are intentionally separate conc
 
 The 100-company cohort remains a stable regression and explainability fixture. It is not an intermediate investment universe and is not replaced by a hand-picked 1,500-company stage.
 
-### Workstream 3C — Benchmark selection and mapping — OPEN
+### Workstream 3C — Benchmark selection and mapping — DONE
 
-1. **#45 — M3.2a:** research and pin the first broad Japan-equity benchmark, including point-in-time reproducibility and licensing constraints, before portfolio results are inspected.
-2. **#50 — M3.3b:** ingest one pinned benchmark constituent/weight snapshot and map it onto canonical TSE identities from #53. The benchmark is therefore a versioned subset/view of the broader TSE universe.
+1. **#45 — M3.2a:** completed — TOPIX Total Return Index selected before portfolio results were inspected; see `docs/results/M3_2A_BENCHMARK_SELECTION_V01.md`.
+2. **#50 — M3.3b:** completed — official JPX TOPIX component-weight snapshot effective 2026-07-31 mapped deterministically onto #53: 1,637 / 1,637 mapped with zero unresolved/disputed/out-of-universe weight; see `docs/results/M3_3B_TOPIX_BENCHMARK_MAPPING_V01.md`.
 
 Benchmark selection may proceed in parallel with #46/#53, but #50 requires both the adopted benchmark and canonical TSE identities.
 

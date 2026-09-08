@@ -1,11 +1,32 @@
 # M3.3b TOPIX benchmark snapshot + TSE mapping v0.1
 
-Status: **BLOCKED_PUBLICATION_LAG -- official public 2026-08-31 component-weight file not yet published**
+Status: **COMPLETE CANDIDATE -- measured 2026-07-31 official public snapshot verified**
 Issue: #50
 Implementation branch: `feat/issue-50-topix-benchmark-mapping`
 Implementation checkpoint before this record: `8a47c4a`
 
-## 2026-09-08 source-route amendment -- official public component weights
+## 2026-09-08 measured acceptance -- first reproducible official public snapshot
+
+The adopted benchmark remains TOPIX Total Return Index (`JPX:TOPIX_TOTAL_RETURN:6000`). No benchmark return or portfolio result was inspected to choose this snapshot. The v0.2 public-weight pin is changed from the not-yet-published 2026-08-31 target to the latest provider-published point-in-time snapshot that was actually reproducible on the acceptance date: **2026-07-31**, publicly available under the documented JPX rule after **2026-08-31 16:20 JST**.
+
+Measured official-source facts:
+
+- source SHA-256: `e8bb15ddbe6f65c11363fe1f816feabc125b8587c520f358dcf191a4e7db0ae7`;
+- implementation commit: `eac18adb1ab58943b688f1e42f249d306f527959`;
+- config SHA-256: `b6ca6742a4e0a606c5fdb5d2386e487dac28dc78ab5df193c70bbc3a0480f2cd`;
+- canonical #53 identity semantic SHA-256: `a74d81a27e19d3a746e1d3669842f7284f43ac45d3ae8601cdd6741d7ebe6733`;
+- constituent count: **1,637**; provider weight sum `0.999996`; rounding gap `0.000004`; normalized sum `1.000000000000`;
+- mapping: **1,637 mapped / 0 unresolved / 0 disputed / 0 out-of-canonical-universe**;
+- semantic snapshot SHA-256: `ebcd408831f30a2c196b4d77dbe595c96c699e73077f04bc2b73e651c86b27f9`;
+- semantic mapping SHA-256: `1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409`;
+- two independent CLI runs were byte-identical for both local and public outputs; public output SHA-256: `c7332869d52c5e5f226fb035cd5699f4065f937babbaa6bb596b538626a803d9`;
+- public aggregate manifest: `docs/results/M3_3B_TOPIX_BENCHMARK_MAPPING_MANIFEST_V01.json`; it contains no row list, canonical entity IDs, or row-level security identifiers.
+
+### Separate non-canonical 2026-06-30 proxy validation
+
+A BlackRock iShares Core TOPIX ETF (1475) historical-holdings spike was also evaluated for engineering comparison only. It is **not** the benchmark source, is **not** used for #50 acceptance, and does not replace JPX evidence. The local spike recorded 1,639 equity rows: 1,635 mapped and 4 outside the later canonical TSE universe, with semantic proxy mapping SHA-256 `1cb834e1af87a16c1c0a941a74beed10e6bf5d6f918df9b5ead68ad100444137`. This remains local/non-canonical evidence.
+
+## Historical 2026-09-08 source-route amendment before final pin
 
 New official-provider evidence found after the original #45/#50 implementation changes the access blocker without changing the selected benchmark.
 
@@ -54,7 +75,7 @@ This proves the free official operator path works end-to-end, but it does **not*
 - `git diff --check` is required clean before delivery;
 - no market return, benchmark return, portfolio construction or performance output was inspected.
 
-### Current resume condition
+### Historical resume condition (superseded by measured acceptance)
 
 #50 resumes when the official JPX public component-weight CSV itself reports `20260831`. Then run the v0.2 mapping twice against the same canonical #53 identity artifact, require identical semantic hashes, verify the provider weight rounding gap is within the pinned tolerance, verify exact normalized weight reconciliation, verify aggregate-only public output, and only then create the measured acceptance manifest and close #50.
 
@@ -154,12 +175,12 @@ Real-money/trading authority: **NONE**
 
 ## Current disposition
 
-`M3_3B_BENCHMARK_MAPPING = BLOCKED_PUBLICATION_LAG`
+`M3_3B_BENCHMARK_MAPPING = COMPLETE_CANDIDATE`
 
-Public official-weight implementation: **READY**
-Live operator validation: **PASSED FOR 2026-07-31 ENGINEERING VALIDATION ONLY**
-Measured 2026-08-31 benchmark snapshot: **NOT YET AVAILABLE FROM THE PUBLIC FILE**
-Issue #50: **must remain OPEN**
-Paid month-end master required for constituent/weight acceptance: **NO under the amended official public-weight route**
-Public row-level benchmark data committed by WA Commons: **NONE**
+Official public snapshot effective 2026-07-31: **MEASURED AND REPRODUCED**
+Mapping coverage: **1,637 / 1,637 mapped; zero unresolved/disputed/out-of-universe weight**
+Deterministic rerun: **PASS**
+Aggregate-only public manifest leak check: **PASS**
+Issue #50: **ready to close after PR/CI/merge verification**
+Market-return ingestion: **NOT STARTED / remains #56**
 Real-money/trading authority: **NONE**

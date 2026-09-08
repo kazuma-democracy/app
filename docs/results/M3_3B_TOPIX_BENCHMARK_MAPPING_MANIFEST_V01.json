@@ -1,0 +1,46 @@
+{
+  "artifact_version": "m3.3b-topix-benchmark-v0.2",
+  "available_at": "2026-08-31T16:20:00+09:00",
+  "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+  "benchmark_weight_sum": "1.000000000000",
+  "code_commit": "eac18adb1ab58943b688f1e42f249d306f527959",
+  "config_sha256": "b6ca6742a4e0a606c5fdb5d2386e487dac28dc78ab5df193c70bbc3a0480f2cd",
+  "constituent_count": 1637,
+  "constituent_product": "TOPIX Component Weight List",
+  "currency": "JPY",
+  "effective_date": "2026-07-31",
+  "identity_semantic_sha256": "a74d81a27e19d3a746e1d3669842f7284f43ac45d3ae8601cdd6741d7ebe6733",
+  "index_code": "0000",
+  "mapping_summary": {
+    "disputed": {
+      "benchmark_weight": "0.000000000000",
+      "count": 0
+    },
+    "mapped": {
+      "benchmark_weight": "1.000000000000",
+      "count": 1637
+    },
+    "out_of_canonical_universe": {
+      "benchmark_weight": "0.000000000000",
+      "count": 0
+    },
+    "unresolved_identity": {
+      "benchmark_weight": "0.000000000000",
+      "count": 0
+    }
+  },
+  "normalization_method": "proportional_rescale_published_weights",
+  "provider": "JPX Market Innovation & Research, Inc.",
+  "provider_weight_rounding_gap": "0.000004",
+  "provider_weight_sum": "0.999996",
+  "publication_rule": "updated after 16:20 JST on the final business day of the following month",
+  "raw_publication": false,
+  "return_index_code": "6000",
+  "rights_mode": "official_public_web_terms_apply_no_raw_redistribution_assumed",
+  "semantic_mapping_sha256": "1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409",
+  "semantic_snapshot_sha256": "ebcd408831f30a2c196b4d77dbe595c96c699e73077f04bc2b73e651c86b27f9",
+  "source_page_url": "https://www.jpx.co.jp/markets/indices/topix/",
+  "source_sha256": "e8bb15ddbe6f65c11363fe1f816feabc125b8587c520f358dcf191a4e7db0ae7",
+  "source_url": "https://www.jpx.co.jp/automation/markets/indices/topix/files/topixweight_j.csv",
+  "weight_basis": "PROVIDER_PUBLISHED_WEIGHT"
+}
