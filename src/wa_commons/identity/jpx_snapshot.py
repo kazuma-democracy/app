@@ -190,6 +190,8 @@ def write_universe(
 ) -> None:
     local_path = Path(local_output)
     manifest_path = Path(public_manifest)
+    if local_path.resolve() == manifest_path.resolve():
+        raise ValueError("local and public outputs must be distinct")
     local_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     local_path.write_text(
