@@ -9,6 +9,7 @@ from .enrich import build_nta_corporate_index, enrich_entity_batch, strong_id
 from .models import EntityRecord, Identifier, SourceRef
 
 IDENTITY_POLICY_VERSION = "wa-conservative-v0.2"
+GLEIF_JP_REGISTRATION_AUTHORITY_ID = "RA001075"
 
 
 def _source_from_dict(value: Mapping[str, object]) -> SourceRef:
@@ -91,6 +92,34 @@ def _semantic_identity_sha256(entities: list[EntityRecord]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _gleif_japan_registration_rows(
+    rows: Iterable[Mapping[str, object]],
+) -> list[Mapping[str, object]]:
+    authority_keys = (
+        "Entity.RegistrationAuthority.RegistrationAuthorityID",
+        "registration_authority_id",
+        "registrationAuthorityId",
+    )
+    entity_id_keys = (
+        "Entity.RegistrationAuthority.RegistrationAuthorityEntityID",
+        "registration_authority_entity_id",
+        "registrationAuthorityEntityId",
+    )
+    output: list[Mapping[str, object]] = []
+    for row in rows:
+        authority = next(
+            (str(row.get(key, "")).strip() for key in authority_keys if str(row.get(key, "")).strip()),
+            "",
+        )
+        registration_entity_id = next(
+            (str(row.get(key, "")).strip() for key in entity_id_keys if str(row.get(key, "")).strip()),
+            "",
+        )
+        if authority == GLEIF_JP_REGISTRATION_AUTHORITY_ID and registration_entity_id:
+            output.append(row)
+    return output
+
+
 def build_tse_identity_spine(
     universe: Mapping[str, object],
     *,
@@ -106,6 +135,7 @@ def build_tse_identity_spine(
     entities = [_entity_from_dict(row) for row in universe.get("entities", [])]
     nta_rows = list(nta_rows)
     nta_by_corporate = build_nta_corporate_index(nta_rows)
+    gleif_rows = _gleif_japan_registration_rows(gleif_rows)
     enriched = enrich_entity_batch(
         entities,
         edinet_rows=edinet_rows,
