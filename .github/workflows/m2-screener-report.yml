@@ -1,0 +1,100 @@
+name: m2-screener-report
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/wa_commons/policy/screener_report.py'
+      - 'scripts/run_m2_2c_report.py'
+      - 'tests/test_explainable_screener_report.py'
+      - 'tests/test_m2_2c_report_runner.py'
+      - 'configs/m2-2c-display-identities-v0.1.json'
+      - 'scripts/run_m1_reproduction.py'
+      - 'scripts/run_m2_2a_coverage.py'
+      - 'scripts/run_m2_2b_screening.py'
+      - 'configs/m2-2a-coverage-v0.1.json'
+      - 'configs/m2-2b-identity-bridge-v0.1.json'
+      - 'schemas/examples/user-policy.examples.json'
+      - 'ROADMAP.md'
+      - 'docs/results/M2_2C_EXPLAINABLE_SCREENER_V01.md'
+      - '.github/workflows/m2-screener-report.yml'
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - name: Install existing M1 OCR/runtime dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-jpn
+      - name: Run focused Issue 44 tests
+        run: >-
+          python -m pytest -q
+          tests/test_explainable_screener_report.py
+          tests/test_m2_2c_report_runner.py
+      - name: Regenerate pinned M1 Evidence Graph
+        run: python scripts/run_m1_reproduction.py
+      - name: Regenerate completed Issue 42 coverage
+        run: python scripts/run_m2_2a_coverage.py --output artifacts/m2-coverage/coverage.json
+      - name: Regenerate completed Issue 43 screening
+        run: python scripts/run_m2_2b_screening.py --output artifacts/m2-screening/screening.json
+      - name: Generate Issue 44 explainable report
+        run: python scripts/run_m2_2c_report.py
+      - name: Verify M2 exit report contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = Path('artifacts/m2-screener-report/report.md').read_text(encoding='utf-8')
+          manifest = json.loads(Path('artifacts/m2-screener-report/manifest.json').read_text(encoding='utf-8'))
+          display = json.loads(Path('configs/m2-2c-display-identities-v0.1.json').read_text(encoding='utf-8'))
+          screening = json.loads(Path('artifacts/m2-screening/screening.json').read_text(encoding='utf-8'))
+
+          assert display['display_identity_sha256'] == '50a23df77b6b1fddb8d8634974105dcec0037fede6975273ddf647674d44af35'
+          assert display['provenance']['m1_identity_semantic_payload_sha256'] == '589bd90eb2bc4a090cc1d73ebabdabab06ae3b12282a3ec38062d78e3399d61f'
+          assert display['provenance']['github_actions_run_id'] == 32459258713
+          assert display['provenance']['github_actions_artifact_id'] == 9438384412
+          assert display['provenance']['artifact_digest'] == 'sha256:fba1edd656b3b55b1c2d82dee1333e56779d75b93ee910d0d89abf281e4f375e'
+          assert len(display['entities']) == 100
+          assert screening['screening_sha256'] == '7bdfec9c733aa84940e23a8d93153b27f604ee0efc799e6cd9edf628d073971a'
+          assert manifest['display_identity_sha256'] == display['display_identity_sha256']
+          assert manifest['company_count'] == 100
+          assert manifest['profile_count'] == 3
+          assert manifest['none_is_not_pass'] is True
+          assert manifest['research_only'] is True
+          assert manifest['selected_profile_id'] == 'example:strict-military-avoidance'
+          assert len(screening['policy_comparison']) == 3
+          assert all(item['same_evidence_snapshot'] for item in screening['policy_comparison'])
+          detail_headings = [
+              line for line in report.splitlines()
+              if line.startswith('## Company ') and not line.startswith('## Company index')
+          ]
+          assert len(detail_headings) == 100
+          assert report.count('Decision under selected profile: **NONE**') == 100
+          assert report.count('jp-mod-procurement: `no_match`') == 100
+          assert report.count('jp-political-finance: `unresolved_identity`') == 100
+          assert report.count('Path: https://github.com/kazuma-democracy/wa-commons/issues/new') == 100
+          assert '極洋' in report
+          assert '鹿島建設' in report
+          assert 'NONE is not PASS' in report
+          assert '## Policy comparison — same evidence snapshot' in report
+          lowered = report.lower()
+          assert 'peace score:' not in lowered
+          assert 'moral score:' not in lowered
+          assert 'safety score:' not in lowered
+          print(json.dumps(manifest, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: m2-2c-explainable-screener
+          path: |
+            artifacts/m2-screener-report/report.md
+            artifacts/m2-screener-report/manifest.json
+          retention-days: 30
