@@ -89,9 +89,21 @@ def _exclusion_category(market: str) -> str:
     return "other_market"
 
 
-def _semantic_payload_sha256(entities: list[dict[str, str]]) -> str:
+def _semantic_projection(entities: list[dict[str, object]]) -> list[dict[str, str]]:
+    return [
+        {
+            "entity_id": str(row["entity_id"]),
+            "security_code": str(row["security_code"]),
+            "canonical_name": str(row["canonical_name"]),
+            "market_segment": str(row["market_segment"]),
+        }
+        for row in entities
+    ]
+
+
+def _semantic_payload_sha256(entities: list[dict[str, object]]) -> str:
     encoded = json.dumps(
-        entities,
+        _semantic_projection(entities),
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -130,7 +142,7 @@ def build_universe(
         "other_market": 0,
         "invalid_row": 0,
     }
-    entities: list[dict[str, str]] = []
+    entities: list[dict[str, object]] = []
 
     for row in read_jpx_rows(path):
         market = str(row.get("市場・商品区分", "")).strip()
@@ -147,17 +159,13 @@ def build_universe(
 
         entity = from_jpx_row(row, source)
         security_code = entity.identifiers[0].value
-        entities.append(
-            {
-                "entity_id": entity.entity_id,
-                "security_code": security_code,
-                "canonical_name": entity.canonical_name,
-                "market_segment": segment,
-            }
-        )
+        entity_payload = entity.to_dict()
+        entity_payload["security_code"] = security_code
+        entity_payload["market_segment"] = segment
+        entities.append(entity_payload)
         market_counts[segment] += 1
 
-    entities.sort(key=lambda row: row["security_code"])
+    entities.sort(key=lambda row: str(row["security_code"]))
     for previous, current in zip(entities, entities[1:]):
         if previous["security_code"] == current["security_code"]:
             raise ValueError(f"duplicate security_code: {current['security_code']}")
