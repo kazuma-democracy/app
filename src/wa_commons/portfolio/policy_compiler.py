@@ -127,6 +127,26 @@ def _coverage_metrics(
     )
 
 
+def _claim_refs(view: Mapping[str, Any], decision: str) -> tuple[list[str], list[str]]:
+    claim_ids: set[str] = set()
+    rule_refs: set[str] = set()
+    for result in view.get("claim_results", []):
+        if str(result.get("decision", "")) != decision:
+            continue
+        claim_id = str(result.get("claim_id", "")).strip()
+        if claim_id:
+            claim_ids.add(claim_id)
+        for rule_ref in result.get("rule_refs", []):
+            rule = str(rule_ref).strip()
+            if rule:
+                rule_refs.add(rule)
+    return sorted(claim_ids), sorted(rule_refs)
+
+
+def _instruction_id(record: Mapping[str, Any]) -> str:
+    return "instruction:" + _semantic_sha256(record)[:24]
+
+
 def _compile_arm(
     benchmark_rows: list[Mapping[str, Any]],
     screening_by_entity: Mapping[str, Mapping[str, Any]],
@@ -139,7 +159,7 @@ def _compile_arm(
         key: Decimal(str(value)) for key, value in arm["decision_multipliers"].items()
     }
     staged: list[dict[str, Any]] = []
-    active_instruction_ids: list[str] = []
+    instructions: list[dict[str, Any]] = []
     raw_total = Decimal("0")
     excluded_weight = Decimal("0")
     underweighted_weight = Decimal("0")
@@ -157,9 +177,22 @@ def _compile_arm(
             else "UNDERWEIGHT" if multiplier < 1
             else "NEUTRAL"
         )
-        instruction_id = f"{arm['arm_id']}:{row['security_id']}:{decision}:{instruction}"
-        if instruction != "NEUTRAL":
-            active_instruction_ids.append(instruction_id)
+        claim_refs, rule_refs = _claim_refs(view, decision)
+        instruction_base = {
+            "arm_id": str(arm["arm_id"]),
+            "security_id": str(row["security_id"]),
+            "entity_id": entity_id,
+            "source_decision": decision,
+            "instruction": instruction,
+            "multiplier": _format_decimal(multiplier, quantum),
+            "source_evidence_refs": claim_refs,
+            "source_rule_refs": rule_refs,
+        }
+        instruction_record = {
+            **instruction_base,
+            "instruction_id": _instruction_id(instruction_base),
+        }
+        instructions.append(instruction_record)
         if instruction == "EXCLUDE":
             excluded_weight += benchmark_weight
         elif instruction == "UNDERWEIGHT":
@@ -174,23 +207,47 @@ def _compile_arm(
             "instruction": instruction,
             "multiplier": multiplier,
             "raw_weight": raw_weight,
-            "instruction_id": instruction_id,
+            "instruction_id": instruction_record["instruction_id"],
         })
         raw_total += raw_weight
 
     if raw_total == 0:
         return None
 
+    rounded_targets: dict[str, Decimal] = {}
+    unrounded_targets: dict[str, Decimal] = {}
+    for item in staged:
+        target = item["raw_weight"] / raw_total
+        unrounded_targets[item["security_id"]] = target
+        rounded_targets[item["security_id"]] = target.quantize(quantum)
+
+    residual = Decimal("1").quantize(quantum) - sum(rounded_targets.values())
+    if residual:
+        recipient = sorted(
+            staged,
+            key=lambda item: (-unrounded_targets[item["security_id"]], item["security_id"]),
+        )[0]
+        rounded_targets[recipient["security_id"]] += residual
+
+    active_instruction_ids = sorted(
+        row["instruction_id"] for row in instructions if row["instruction"] != "NEUTRAL"
+    )
     target_rows: list[dict[str, Any]] = []
     active_share = Decimal("0")
     max_change = Decimal("0")
     changed_count = 0
+    hhi = Decimal("0")
+    holding_count = 0
     for item in staged:
-        target = item["raw_weight"] / raw_total
-        delta = target - item["benchmark_weight"]
+        target = rounded_targets[item["security_id"]]
+        benchmark_weight = item["benchmark_weight"].quantize(quantum)
+        delta = target - benchmark_weight
         absolute_delta = abs(delta)
         active_share += absolute_delta / 2
         max_change = max(max_change, absolute_delta)
+        if target > 0:
+            holding_count += 1
+        hhi += target * target
         if absolute_delta != 0:
             changed_count += 1
         if item["instruction"] != "NEUTRAL" and absolute_delta != 0:
@@ -198,14 +255,14 @@ def _compile_arm(
             source_instruction_ids = [item["instruction_id"]]
         elif absolute_delta != 0:
             attribution_kind = "NORMALIZATION_REDISTRIBUTION"
-            source_instruction_ids = sorted(active_instruction_ids)
+            source_instruction_ids = active_instruction_ids
         else:
             attribution_kind = "NO_CHANGE"
             source_instruction_ids = []
         target_rows.append({
             "security_id": item["security_id"],
             "entity_id": item["entity_id"],
-            "benchmark_weight": _format_decimal(item["benchmark_weight"], quantum),
+            "benchmark_weight": _format_decimal(benchmark_weight, quantum),
             "target_weight": _format_decimal(target, quantum),
             "allocation_delta": _format_decimal(delta, quantum),
             "decision": item["decision"],
@@ -232,6 +289,7 @@ def _compile_arm(
         "allocation_policy_version": arm["allocation_policy_version"],
         "status": status,
         "semantic_target_sha256": semantic_target_sha,
+        "instructions": instructions,
         "target_weights": target_rows,
         "metrics": {
             "active_share": _format_decimal(active_share, quantum),
@@ -241,6 +299,8 @@ def _compile_arm(
             "neutral_benchmark_weight": _format_decimal(neutral_weight, quantum),
             "changed_security_count": changed_count,
             "max_absolute_weight_change": _format_decimal(max_change, quantum),
+            "holding_count": holding_count,
+            "hhi": _format_decimal(hhi, quantum),
             "coverage_state_benchmark_weight": coverage_weights,
             "insufficient_coverage_benchmark_weight": insufficient_weight,
         },

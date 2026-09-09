@@ -168,3 +168,45 @@ def test_all_zero_raw_allocation_blocks_policy_infeasible() -> None:
         view["decision"] = "EXCLUDE"
     result = module.compile_policy_family(benchmark, screening, config)
     assert result["status"] == "BLOCK_POLICY_INFEASIBLE"
+
+
+def test_arm_exposes_instruction_records_with_claim_refs() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    result = module.compile_policy_family(benchmark, screening, config)
+    p2 = next(arm for arm in result["arms"] if arm["arm_id"] == "P2")
+    watch = next(row for row in p2["instructions"] if row["security_id"] == "2000")
+    assert watch["instruction"] == "UNDERWEIGHT"
+    assert watch["source_decision"] == "WATCH"
+    assert watch["source_evidence_refs"] == ["claim:2"]
+    changed_watch = next(row for row in p2["target_weights"] if row["security_id"] == "2000")
+    assert changed_watch["attribution"]["source_instruction_ids"] == [watch["instruction_id"]]
+
+
+def test_concentration_metrics_are_reported() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    result = module.compile_policy_family(benchmark, screening, config)
+    p2 = next(arm for arm in result["arms"] if arm["arm_id"] == "P2")
+    assert p2["metrics"]["holding_count"] == 2
+    assert p2["metrics"]["hhi"] == "0.625000000000"
+
+
+def test_semantic_target_weights_sum_to_exactly_one_after_rounding() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    benchmark["rows"] = [
+        {"security_id": "1000", "benchmark_weight": "0.333333333334", "mapping_state": "mapped", "canonical_entity_id": "wa:1", "canonical_review_state": "CONFIRMED"},
+        {"security_id": "2000", "benchmark_weight": "0.333333333333", "mapping_state": "mapped", "canonical_entity_id": "wa:2", "canonical_review_state": "CONFIRMED"},
+        {"security_id": "3000", "benchmark_weight": "0.333333333333", "mapping_state": "mapped", "canonical_entity_id": "wa:3", "canonical_review_state": "CONFIRMED"},
+    ]
+    screening["views"].append({
+        "entity_id": "wa:3", "profile_id": "example:strict-military-avoidance", "profile_version": "1",
+        "policy_sha256": POLICY_SHA, "decision": "NONE", "identity_state": "confirmed",
+        "claim_results": [], "coverage_state_counts": {"observed": 1, "no_match": 0, "unknown": 0, "unresolved_identity": 0, "not_integrated": 0},
+    })
+    result = module.compile_policy_family(benchmark, screening, config)
+    p2 = next(arm for arm in result["arms"] if arm["arm_id"] == "P2")
+    from decimal import Decimal
+    assert sum(Decimal(row["target_weight"]) for row in p2["target_weights"]) == Decimal("1.000000000000")
+    assert all(len(row["target_weight"].split(".")[1]) == 12 for row in p2["target_weights"])
