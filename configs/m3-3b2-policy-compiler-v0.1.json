@@ -1,0 +1,43 @@
+{
+  "artifact_version": "m3.3b2-policy-compiler-v0.1",
+  "issue": 84,
+  "paper_only": true,
+  "real_money_authority": false,
+  "market_data_inputs_allowed": false,
+  "input_contract": {
+    "benchmark_semantic_mapping_sha256": "1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409",
+    "screening_sha256": "aff7ea3437d2b19282e96b095e989f54d68bb7443eafc66e170396a9bcf2a17c",
+    "profile_id": "example:strict-military-avoidance",
+    "profile_version": "1",
+    "policy_sha256": "7b2558875af5f23ae32061c218a15de94dce479badf239f6b412bd77ba51a72c"
+  },
+  "unknown_handling": {
+    "multiplier": "1.0",
+    "report_separately": true,
+    "insufficient_states": ["unknown", "unresolved_identity", "not_integrated"]
+  },
+  "numerical": {
+    "semantic_weight_decimals": 12,
+    "rounding_mode": "ROUND_HALF_EVEN"
+  },
+  "arms": [
+    {
+      "arm_id": "P0",
+      "allocation_policy_id": "control:topix",
+      "allocation_policy_version": "1",
+      "decision_multipliers": {"EXCLUDE": "1.0", "WATCH": "1.0", "NONE": "1.0"}
+    },
+    {
+      "arm_id": "P1",
+      "allocation_policy_id": "example:strict-military-avoidance:minimal-intervention",
+      "allocation_policy_version": "1",
+      "decision_multipliers": {"EXCLUDE": "0.0", "WATCH": "1.0", "NONE": "1.0"}
+    },
+    {
+      "arm_id": "P2",
+      "allocation_policy_id": "example:strict-military-avoidance:active-avoidance",
+      "allocation_policy_version": "1",
+      "decision_multipliers": {"EXCLUDE": "0.0", "WATCH": "0.5", "NONE": "1.0"}
+    }
+  ]
+}

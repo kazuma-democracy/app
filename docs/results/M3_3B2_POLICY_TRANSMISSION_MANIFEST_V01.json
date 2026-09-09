@@ -1,0 +1,95 @@
+{
+  "arms": [
+    {
+      "allocation_policy_id": "control:topix",
+      "allocation_policy_version": "1",
+      "arm_id": "P0",
+      "metrics": {
+        "active_share": "0.000000000000",
+        "changed_security_count": 0,
+        "coverage_state_benchmark_weight": {
+          "no_match": "0.987745950984",
+          "not_integrated": "1.000000000000",
+          "observed": "0.012053048212",
+          "unknown": "0.000000000000",
+          "unresolved_identity": "1.000000000000"
+        },
+        "excluded_benchmark_weight": "0.000000000000",
+        "hhi": "0.009457631118",
+        "holding_count": 1637,
+        "insufficient_coverage_benchmark_weight": "1.000000000000",
+        "max_absolute_weight_change": "0.000000000000",
+        "neutral_benchmark_weight": "1.000000000000",
+        "reallocation_mass": "0.000000000000",
+        "underweighted_benchmark_weight": "0.000000000000"
+      },
+      "semantic_target_sha256": "d3e13f2700576bce9b8b271e6d5a4f03022373d98312a5769a9cee9b650b8e79",
+      "status": "POLICY_TRANSMISSION_ZERO"
+    },
+    {
+      "allocation_policy_id": "example:strict-military-avoidance:minimal-intervention",
+      "allocation_policy_version": "1",
+      "arm_id": "P1",
+      "metrics": {
+        "active_share": "0.000000000000",
+        "changed_security_count": 0,
+        "coverage_state_benchmark_weight": {
+          "no_match": "0.987745950984",
+          "not_integrated": "1.000000000000",
+          "observed": "0.012053048212",
+          "unknown": "0.000000000000",
+          "unresolved_identity": "1.000000000000"
+        },
+        "excluded_benchmark_weight": "0.000000000000",
+        "hhi": "0.009457631118",
+        "holding_count": 1637,
+        "insufficient_coverage_benchmark_weight": "1.000000000000",
+        "max_absolute_weight_change": "0.000000000000",
+        "neutral_benchmark_weight": "1.000000000000",
+        "reallocation_mass": "0.000000000000",
+        "underweighted_benchmark_weight": "0.000000000000"
+      },
+      "semantic_target_sha256": "d3e13f2700576bce9b8b271e6d5a4f03022373d98312a5769a9cee9b650b8e79",
+      "status": "POLICY_TRANSMISSION_ZERO"
+    },
+    {
+      "allocation_policy_id": "example:strict-military-avoidance:active-avoidance",
+      "allocation_policy_version": "1",
+      "arm_id": "P2",
+      "metrics": {
+        "active_share": "0.005989984910",
+        "changed_security_count": 1637,
+        "coverage_state_benchmark_weight": {
+          "no_match": "0.987745950984",
+          "not_integrated": "1.000000000000",
+          "observed": "0.012053048212",
+          "unknown": "0.000000000000",
+          "unresolved_identity": "1.000000000000"
+        },
+        "excluded_benchmark_weight": "0.000000000000",
+        "hhi": "0.009520401652",
+        "holding_count": 1637,
+        "insufficient_coverage_benchmark_weight": "1.000000000000",
+        "max_absolute_weight_change": "0.003027047049",
+        "neutral_benchmark_weight": "0.987946951788",
+        "reallocation_mass": "0.005989984910",
+        "underweighted_benchmark_weight": "0.012053048212"
+      },
+      "semantic_target_sha256": "8054523c83bbe420957e3f2115cbd2a7abbe782850f02946d341b5e173b2d8dc",
+      "status": "POLICY_TRANSMISSION_OK"
+    }
+  ],
+  "artifact_version": "m3.3b2-policy-compiler-v0.1",
+  "benchmark_semantic_mapping_sha256": "1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409",
+  "code_commit": "831fd7550598978646b5f3c297ae29494e1d4ed6",
+  "config_semantic_sha256": "bf5f68e8c528b77305b6a2b2e907abaf816546434d0f78b4161cc05b117cf636",
+  "market_data_inputs_allowed": false,
+  "paper_only": true,
+  "policy_family_sha256": "6cef954a47173f6f5550b66ebb860a76583c3ee023d05b9399a8501a31cf574f",
+  "policy_sha256": "7b2558875af5f23ae32061c218a15de94dce479badf239f6b412bd77ba51a72c",
+  "profile_id": "example:strict-military-avoidance",
+  "profile_version": "1",
+  "real_money_authority": false,
+  "screening_sha256": "aff7ea3437d2b19282e96b095e989f54d68bb7443eafc66e170396a9bcf2a17c",
+  "status": "FROZEN_POLICY_FAMILY"
+}

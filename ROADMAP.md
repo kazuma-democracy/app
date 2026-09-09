@@ -10,11 +10,11 @@ Build useful, voluntary software where repeated use can create a measurable peac
 
 The first proof vehicle is **Experiment 001 — Peace Capital**.
 
-## Current position — 2026-09-08
+## Current position — 2026-09-09
 
 - **M1 — Reproducible Evidence Graph: COMPLETE.** Measured clean reproduction is recorded in `docs/M1_ACCEPTANCE.md`.
 - **M2 — Explainable company screener: COMPLETE.** #42 coverage, #43 deterministic company screening and #44 static explainability report are complete. Measured #44 acceptance is recorded in `docs/results/M2_2C_EXPLAINABLE_SCREENER_V01.md`; `NONE` remains explicitly distinct from PASS/clean/safe.
-- **M3 — Peace Capital paper portfolio: IN PROGRESS.** The preregistered evaluation specification is complete. The product-universe strategy is now **100-company engineering cohort → canonical TSE domestic listed-company universe**; the benchmark is a separately selected subset/view used for financial evaluation rather than an intermediate coverage universe.
+- **M3 - Peace Capital paper portfolio: IN PROGRESS.** The Evidence/identity/screening, benchmark mapping, constructor foundation and zero-cost monthly evaluation contract are complete. The current bounded task is **#84 Policy Compiler v0**, followed by reusable monthly market primitives (#56), leak-safe Historical Replay (#85), and integrated policy-family evaluation (#51).
 - **Phase 5–6 future design:** a Purchase Route Router is preregistered as the first second-domain candidate. The current product strategy is **distribution-first / integration-first**: begin where users already browse or compare products, use thin browser/share/URL handoffs to invoke WA Commons, test books first, then electronics/PC parts, and treat standalone WA product search as an optional later client rather than the MVP acquisition surface. The first public purchasing experiment is also **local-first / serverless-friendly / ship-small**: core routing should not require an always-on WA Commons application server, v0 is affiliate-free, bounded retailer coverage is acceptable when explicit, and the first release should expose documented contribution paths so verified coverage can grow as a commons. See `docs/PURCHASE_ROUTER_PROPOSAL.md`. This is future design only and does not displace current M3 work or waive Phase 5/6 gates.
 - **Phase 0 governance cleanup remains open.** #8 ideological-bias red-team and #9 Japanese/English terminology review are still required and are not considered completed by later technical progress.
 
@@ -166,83 +166,72 @@ Measured evidence:
 
 ---
 
-## Phase 3 — Peace Capital paper portfolio — IN PROGRESS
+## Phase 3 - Peace Capital paper portfolio - IN PROGRESS
 
 ### Purpose
-Test whether the product remains financially useful after value constraints are applied.
+Prove that explicit user policy can change capital allocation reproducibly, then measure the financial consequences honestly without return-driven method selection.
 
-### Workstream 3A — Evaluation specification — DONE
-The financial evaluation contract was fixed before portfolio results are generated. It defines:
-- preregistered benchmark requirements;
-- point-in-time membership and as-known-at-cutoff controls;
-- diversification/concentration metrics;
-- tracking difference/error;
-- turnover;
-- estimated cost scenarios;
-- sector/factor drift;
-- policy-threshold sensitivity;
-- versioned reproducibility;
-- benchmark-gaming safeguards.
+### Workstream 3A - Evaluation specification - DONE
+The financial evaluation contract was fixed before portfolio results are generated. It defines benchmark preregistration, point-in-time/as-known controls, concentration, return/risk/cost diagnostics, reproducibility and benchmark-gaming safeguards.
 
-**Issue:** #6 — completed. See `docs/PAPER_PORTFOLIO_EVALUATION.md`.
+**Issue:** #6 - completed. See `docs/PAPER_PORTFOLIO_EVALUATION.md`.
 
-### Workstream 3B — Canonical Japan-equity universe — COMPLETE
+### Workstream 3B - Canonical Japan-equity universe and policy screening - COMPLETE
+1. **#46:** canonical domestic TSE Prime/Standard/Growth universe - 3,707 companies.
+2. **#53:** conservative identity spine across the 3,707 companies.
+3. **#54:** TSE-wide evidence coverage using explicit uncertainty states.
+4. **#55:** deterministic policy screening across 3,707 companies x 3 profiles.
 
-The product universe and the financial benchmark are intentionally separate concerns.
+The 100-company cohort remains a regression/explainability fixture, not an investment-universe shortcut.
 
-1. **#46 — M3.2b1:** completed — pinned canonical domestic TSE Prime/Standard/Growth universe; measured result is 3,707 companies.
-2. **#53 — M3.2b2:** completed — conservative JPX/EDINET/NTA/GLEIF identity spine across all 3,707 companies; see `docs/results/M3_2B2_TSE_IDENTITY_SPINE_V01.md`.
-3. **#54 — M3.2d:** completed — #42 coverage-state machinery scaled to all 3,707 companies; see `docs/results/M3_2D_TSE_EVIDENCE_COVERAGE_V01.md`.
-4. **#55 — M3.2e:** completed — #43 deterministic policy screening scaled to 3,707 companies × 3 profiles; see `docs/results/M3_2E_TSE_POLICY_SCREENING_V01.md`.
+### Workstream 3C - Benchmark selection and mapping - COMPLETE
+1. **#45:** TOPIX Total Return Index selected before performance inspection.
+2. **#50:** official JPX snapshot effective 2026-07-31 mapped 1,637 / 1,637 onto canonical identities with zero unresolved/disputed/out-of-universe weight.
 
-The 100-company cohort remains a stable regression and explainability fixture. It is not an intermediate investment universe and is not replaced by a hand-picked 1,500-company stage.
+### Workstream 3D - Constructor foundation - COMPLETE
+1. **#47:** OSS/constructor design completed.
+2. **#49:** deterministic paper-only `benchmark-l2-projection` constructor implemented and tested.
 
-### Workstream 3C — Benchmark selection and mapping — DONE
+The existing L2 constructor remains reusable financial-fidelity infrastructure. It is no longer assumed to be the only policy-to-allocation control surface.
 
-1. **#45 — M3.2a:** completed — TOPIX Total Return Index selected before portfolio results were inspected; see `docs/results/M3_2A_BENCHMARK_SELECTION_V01.md`.
-2. **#50 — M3.3b:** completed — official JPX TOPIX component-weight snapshot effective 2026-07-31 mapped deterministically onto #53: 1,637 / 1,637 mapped with zero unresolved/disputed/out-of-universe weight; see `docs/results/M3_3B_TOPIX_BENCHMARK_MAPPING_V01.md`.
+### Workstream 3E - Policy Transmission compiler - CURRENT
+**#80:** superseded before implementation because its single minimal-intervention freeze could structurally collapse toward the benchmark.
 
-Benchmark selection may proceed in parallel with #46/#53, but #50 requires both the adopted benchmark and canonical TSE identities.
+**#84 - M3.3b2:** implement Policy Compiler v0 and preregister P0/P1/P2 over the same accepted #50/#55 snapshot. Primary outputs are target weights plus Policy Transmission metrics computed before market returns:
+- active share / reallocation mass;
+- instruction-affected benchmark weight;
+- changed-security count and maximum single-name change;
+- unknown/unresolved evidence mass where supported;
+- rule-level capital attribution.
 
-### Workstream 3D — Portfolio constructor — OPEN
+P1 may honestly return `POLICY_TRANSMISSION_ZERO`. P2 uses the preregistered `WATCH -> 0.5x` user-policy instruction without treating it as a universal company score.
 
-1. **#47 — M3.2c:** review mature OSS and define the minimum bounded constructor; do not select a method by observed return performance.
-2. **#49 — M3.3a:** implement only the selected deterministic paper-only constructor and its versioned configuration.
+### Workstream 3F - Free monthly market primitives and leak-safe Historical Replay - OPEN
+**#78 - M3.3c0:** completed - zero-purchase/monthly/fail-closed source, rights and return contract. October 2026 remains the true future holdout.
 
-Use mature portfolio libraries where possible. Do not invent an optimizer unless the OSS review demonstrates a gap.
+**#56 - M3.3c:** after #84, implement reusable month-parameterized JPX price/benchmark-return/corporate-action primitives. Raw source rows remain local-only and missing evidence/data fails closed.
 
-### Workstream 3E — Market-return ingestion — OPEN
+**#85 - M3.3c0 replay:** after #84/#56, select the most recent reproducible three consecutive historical months using metadata/existence only, freeze that window before return loading, and run a leak-safe walk-forward replay. Current constituents/evidence may never be projected backward.
 
-**#78 — M3.3c0:** preregister the zero-purchase monthly evaluation window, free JPX source roles, return basis, rights boundary, and fail-closed states before market-return ingestion starts.
+After the three-month replay is GREEN, extend the identical frozen method to 12 months and optionally 24 months if point-in-time reconstruction remains reproducible and affordable.
 
-**#56 — M3.3c:** consume completed #78 and implement the bounded monthly market-return/corporate-action ingestion artifact. Missing held-security prices, dividends, identities, or action evidence fail closed.
-
-Market-return ingestion remains separate from benchmark membership/mapping and constructor logic because each has independent data, licensing and failure modes.
-
-### Workstream 3F — First integrated paper evaluation — OPEN
-
-**#51 — M3.3d:** combine previously completed components without introducing new methodology inside the integration issue.
+### Workstream 3G - Integrated policy-family evaluation - OPEN
+**#51 - M3.3d:** combine completed versioned components without introducing new methodology. Policy Transmission is the primary outcome; financial consequences are secondary.
 
 Required output includes:
-- selected policy and evidence versions;
-- TSE-wide evidence/screening provenance;
-- mapped benchmark coverage and unscreened weight;
-- excluded/WATCH/NONE coverage;
-- resulting target portfolio;
-- benchmark comparison;
-- concentration and risk trade-offs;
-- tracking difference/error;
-- turnover and cost scenarios;
-- sector/factor drift where coverage permits;
-- threshold sensitivity;
-- limitations, blocked intervals and negative results;
-- complete reproduction manifest and output hashes.
+- preregistered P0/P1/P2 policy family and hashes;
+- evidence/screening/benchmark provenance;
+- active share / reallocation mass and rule attribution;
+- unknown/unresolved evidence mass and concentration/sector effects;
+- matching-basis candidate/benchmark returns where available;
+- Historical Replay and October 2026 future holdout as distinct result classes;
+- blocked periods, negative findings, complete reproduction manifests and output hashes.
 
-### Milestone M3 — Peace Capital v0 — NOT YET COMPLETE
-A user can create a reproducible paper portfolio aligned with their own policy and see the financial trade-offs honestly, while the underlying Japan-equity evidence universe remains broader than the selected benchmark.
+### Milestone M3 - Peace Capital v0 - NOT YET COMPLETE
+A user can apply an explicit policy to shared Evidence, reproduce the resulting capital allocation, see exactly how much capital the policy moved and why, and inspect the financial consequences without hidden scoring, look-ahead, survivorship shortcuts or return-driven method selection.
 
 ### Gate to Phase 4
-Demonstrate at least one concrete non-ideological user benefit such as research time saved, easier customization, clearer evidence, or lower decision friction.
+Demonstrate at least one concrete non-ideological user benefit such as research time saved, easier customization, clearer evidence, lower decision friction, or clearer visibility into the cost of expressing a policy.
 
 ---
 
@@ -560,70 +549,37 @@ The project should only enter these areas when earlier phases demonstrate user u
 ```text
 Phase 0 governance cleanup (#8, #9 remain open)
 
-M1 Evidence foundation — COMPLETE
-        ↓
-M2 integration
-#42 Coverage matrix
-        ↓
-#43 Policy screening
-        ↓
-#44 Explainable screener
-        ↓
-M2 COMPLETE
+M1 Evidence foundation - COMPLETE
+        ->
+M2 Explainable screener - COMPLETE
 
-M3 evaluation spec (#6) — COMPLETE
+M3 evaluation specification (#6) - COMPLETE
 
-Canonical TSE coverage path:
-#46 TSE company universe
-        ↓
-#53 TSE identity enrichment
-        ↓
-#54 TSE evidence coverage  ← #42 semantics
-        ↓
-#55 TSE policy screening   ← #43 semantics
+Canonical TSE path:
+#46 -> #53 -> #54 -> #55 - COMPLETE
 
-Financial benchmark path:
-#45 Benchmark selection
-   ├────→ #47 OSS/constructor design → #49 Constructor implementation
-   └─────────────┐
-                 └→ #50 Benchmark snapshot + TSE mapping ← #53
-                                ↓
-                           #78 Free monthly preregistration
-                                         ↓
-                           #56 Market returns
+Financial foundation:
+#45 -> #47 -> #49 - COMPLETE
+  -> #50 benchmark mapping - COMPLETE
+  -> #78 zero-cost monthly evaluation contract - COMPLETE
 
-#44 + #49 + #50 + #55 + #56
-                ↓
-      #51 First paper evaluation
-                ↓
-             M3 COMPLETE
-        ↓
-Phase 4 Utility validation
-        ↓
-Phase 5 Peace Router core
-        ↓
-Phase 6 Purchase Route Router candidate
-Books public v0.1 vertical slice
-(local-first / serverless-friendly / affiliate-free)
-        ↓
-public use / reproducibility / contributor gate
-        ↓
-Books integration-first mechanism expansion
-(browser/share/URL + ISBN fallback)
-        ↓
-utility / evidence / rights / integration gate
-        ↓
-Electronics + PC-parts extension
-        ↓
-optional later standalone WA product search client
-        ↓
-M6 Two-domain proof or explicit pivot
-        ↓
-Phase 7 Bounded autonomous maintenance
-        ↓
-Phase 8 International ecosystem
-        ↓
-Phase 9 Long-horizon infrastructure
+#49 + #50 + #55 + #78
+        ->
+#84 Policy Compiler v0 + current-snapshot Policy Transmission proof
+        ->
+#56 reusable free-monthly market-return/corporate-action primitives
+        ->
+#85 leak-safe three-month Historical Replay
+        ->
+#51 integrated policy-family evaluation
+        ->
+M3 COMPLETE
+
+2026-10 future holdout remains separate from Historical Replay and uses the same preregistered method after its data becomes available.
+        ->
+Phase 4 Utility validation -> Phase 5 Peace Router core -> Phase 6 second-domain experiment
+        ->
+Phase 7 bounded autonomous maintenance -> Phase 8 international ecosystem -> Phase 9 long-horizon infrastructure
 ```
 
 ## Agent-sized task contract
@@ -645,25 +601,19 @@ An Issue is ready for autonomous assignment only when all of these are true:
 
 If an Issue fails this checklist, split or respec it **before** handing it to an autonomous worker. Do not compensate for an oversized task by giving the model a giant prompt or repeatedly relaunching it.
 
-## Task-granularity audit — 2026-09-08
+## Task-granularity audit - 2026-09-09
 
-Current near-term issues after M2 completion:
+Current near-term M3 state:
 
-- **#42 — COMPLETE:** 100-company coverage artifact and explicit coverage-state semantics are merged.
-- **#43 — COMPLETE:** deterministic 100-company screening artifact and policy/evidence traceability are merged.
-- **#44 — COMPLETE with this M2 exit change:** static explainability report and measured milestone review are complete; broad production UI remains excluded.
-- **#45 — READY research task:** one benchmark decision record; no implementation/backtest is permitted.
-- **#46 — READY:** narrowed to canonical JPX/TSE universe enumeration only. Identity enrichment was split out.
-- **#53 — READY after #46:** one TSE-wide identity artifact; source-format failures have explicit stop behavior.
-- **#54 — READY after #42/#53:** one TSE-wide evidence-coverage artifact using existing adapters only.
-- **#55 — READY after #43/#54:** one TSE-wide deterministic policy-screening artifact.
-- **#47 — READY after #45:** one OSS/constructor design decision; implementation and returns remain separate.
-- **#49 — READY after #47:** one constructor implementation with fixed fixtures/invariants.
-- **#50 — READY after #45/#53:** narrowed to benchmark constituent/weight ingestion + canonical TSE mapping; return history was split out.
-- **#78 — READY after #50:** preregister the zero-cost monthly evaluation/source/return contract; **#56 — READY only after #78:** implement that contract without inventing methodology.
-- **#51 — READY only after all prerequisites:** pure integration/evaluation; methodology changes are explicit blockers.
+- **#42 / #43 / #44 - COMPLETE:** M2 coverage, deterministic screening and explainability are merged.
+- **#45 / #46 / #47 / #49 / #50 / #53 / #54 / #55 / #78 - COMPLETE:** M3 universe, identity, evidence, screening, benchmark, constructor foundation and zero-cost monthly evaluation contract are durable prerequisites.
+- **#80 - SUPERSEDED / NOT PLANNED:** old single-portfolio freeze must not be implemented.
+- **#84 - CURRENT / READY:** one bounded Policy Compiler v0 + current-snapshot Policy Transmission proof. No market-return input is permitted.
+- **#56 - READY only after #84:** reusable month-parameterized free JPX market-return/corporate-action primitives; no replay-window selection.
+- **#85 - READY only after #84/#56:** metadata-only three-month replay-window qualification, freeze and leak-safe execution.
+- **#51 - READY only after #84/#56/#85 and other completed prerequisites:** pure integrated policy-family evaluation; methodology changes remain blockers.
 
-Phases 4–9 are **not yet worker-ready as whole tasks**. `docs/PURCHASE_ROUTER_PROPOSAL.md` is likewise a preregistered future design, not a worker assignment. Before execution, each workstream must be converted into Issue-sized contracts using the checklist above; agents should never be assigned “do Phase 4”, “build Peace Router”, “build the Books Router”, “internationalize WA Commons”, or similar roadmap-sized prompts.
+Phases 4-9 are **not yet worker-ready as whole tasks**. `docs/PURCHASE_ROUTER_PROPOSAL.md` remains preregistered future design rather than current execution authority.
 
 ## Task-splitting discipline
 
@@ -694,14 +644,15 @@ WA Commons should **not**:
 
 ## Immediate next work
 
-M2 is complete. The nearest bounded work now belongs to M3 and follows the existing dependency graph rather than reopening M2:
+M2 is complete. The shortest M3 path is now explicit:
 
-1. **#46 — M3.2b1:** canonical TSE domestic listed-company universe enumeration.
-2. **#45 — M3.2a:** benchmark research/preregistration may proceed independently in parallel.
-3. After #46, **#53** builds the TSE-wide conservative identity artifact; completed #42/#43 semantics then scale through **#54 → #55**.
-4. After #45, **#47 → #49** handles the bounded paper-only constructor path; **#50** waits for both #45 and #53; **#78** follows #50 to preregister the free monthly evaluation contract; **#56** follows completed #78.
-5. **#51** remains the pure integrated paper evaluation only after #44, #49, #50, #55 and #56 are complete.
+1. **#84 - Policy Compiler v0:** compile the preregistered P0/P1/P2 family from the accepted #50 benchmark and #55 screening snapshot, then freeze Policy Transmission metrics before any corresponding return data is loaded.
+2. **#56 - reusable free-monthly market primitives:** once #84 is merged, implement month-parameterized JPX price, dividend/corporate-action and TOPIX monthly-return normalization with fail-closed evidence handling.
+3. **#85 - three-month Historical Replay:** choose the exact window by metadata/existence only, freeze it before return loading, then execute the same P0/P1/P2 semantics with strict as-known and point-in-time controls.
+4. **12-24 month extension:** only after the three-month path is reproducible and leak-safe; extension length is not selected from observed performance.
+5. **2026-10 future holdout:** preserve October as a distinct prospective test and do not use its results to tune the compiler/replay method.
+6. **#51 - integrated policy-family evaluation:** report Policy Transmission first and financial consequences second, with blocked and unfavorable results preserved.
 
-The historical M1.1 JPX retrieval URL was observed returning 404 during #44 acceptance. #44 preserved the accepted M1.1 artifact as a hash-verified display projection rather than changing M1 source code. Any live M1.1 source-maintenance work should remain a separately scoped maintenance issue and must not be confused with #46's new canonical TSE-universe task.
+The historical M1.1 JPX retrieval URL observed returning 404 during #44 acceptance remains a separately scoped maintenance concern and does not modify this M3 sequence.
 
-The Purchase Route Router remains **future preregistered design only**. It does not enter the immediate work queue until the relevant Phase 5/6 gates are met or a separately authorized bounded source/rights/integration research issue is created.
+The Purchase Route Router remains **future preregistered design only** until the relevant Phase 5/6 gates are reached.
