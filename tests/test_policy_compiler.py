@@ -104,3 +104,67 @@ def test_profile_policy_hash_mismatch_blocks_input_version() -> None:
     benchmark, screening, config = minimal_inputs()
     screening["views"][0]["policy_sha256"] = "f" * 64
     assert module.compile_policy_family(benchmark, screening, config)["status"] == "BLOCK_INPUT_VERSION"
+
+
+def test_p0_p1_zero_and_p2_reallocates_watch() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    result = module.compile_policy_family(benchmark, screening, config)
+    assert result["status"] == "FROZEN_POLICY_FAMILY"
+    arms = {arm["arm_id"]: arm for arm in result["arms"]}
+    assert arms["P0"]["status"] == "POLICY_TRANSMISSION_ZERO"
+    assert arms["P1"]["status"] == "POLICY_TRANSMISSION_ZERO"
+    assert arms["P2"]["status"] == "POLICY_TRANSMISSION_OK"
+    assert [row["target_weight"] for row in arms["P2"]["target_weights"]] == [
+        "0.750000000000",
+        "0.250000000000",
+    ]
+    assert arms["P2"]["metrics"]["active_share"] == "0.150000000000"
+    assert arms["P2"]["metrics"]["reallocation_mass"] == "0.150000000000"
+    assert arms["P2"]["metrics"]["underweighted_benchmark_weight"] == "0.400000000000"
+    assert arms["P2"]["metrics"]["changed_security_count"] == 2
+    assert arms["P2"]["metrics"]["max_absolute_weight_change"] == "0.150000000000"
+
+
+def test_target_hash_is_independent_of_input_order() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    forward = module.compile_policy_family(benchmark, screening, config)
+    benchmark["rows"].reverse()
+    screening["views"].reverse()
+    reverse = module.compile_policy_family(benchmark, screening, config)
+    assert [arm["semantic_target_sha256"] for arm in forward["arms"]] == [
+        arm["semantic_target_sha256"] for arm in reverse["arms"]
+    ]
+
+
+def test_every_nonzero_delta_has_policy_attribution() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    result = module.compile_policy_family(benchmark, screening, config)
+    p2 = next(arm for arm in result["arms"] if arm["arm_id"] == "P2")
+    changed = [row for row in p2["target_weights"] if row["allocation_delta"] != "0.000000000000"]
+    assert changed
+    assert all(row["attribution"]["kind"] in {"DIRECT_POLICY_INSTRUCTION", "NORMALIZATION_REDISTRIBUTION"} for row in changed)
+    assert all(row["attribution"]["source_instruction_ids"] for row in changed)
+
+
+def test_coverage_mass_is_reported_without_relabeling_no_match_safe() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    result = module.compile_policy_family(benchmark, screening, config)
+    p2 = next(arm for arm in result["arms"] if arm["arm_id"] == "P2")
+    coverage = p2["metrics"]["coverage_state_benchmark_weight"]
+    assert coverage["observed"] == "1.000000000000"
+    assert coverage["not_integrated"] == "0.400000000000"
+    assert p2["metrics"]["insufficient_coverage_benchmark_weight"] == "0.400000000000"
+    assert "safe" not in json.dumps(p2, sort_keys=True).lower()
+
+
+def test_all_zero_raw_allocation_blocks_policy_infeasible() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    for view in screening["views"]:
+        view["decision"] = "EXCLUDE"
+    result = module.compile_policy_family(benchmark, screening, config)
+    assert result["status"] == "BLOCK_POLICY_INFEASIBLE"

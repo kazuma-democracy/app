@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -68,8 +69,7 @@ def _screening_index(
     profile_version = contract.get("profile_version")
     policy_sha = contract.get("policy_sha256")
     selected = [
-        view
-        for view in screening.get("views", [])
+        view for view in screening.get("views", [])
         if view.get("profile_id") == profile_id
         and str(view.get("profile_version")) == str(profile_version)
     ]
@@ -86,6 +86,165 @@ def _screening_index(
             return "BLOCK_POLICY_INSTRUCTION", {}
         index[entity_id] = view
     return None, index
+
+
+def _quantizer(config: Mapping[str, Any]) -> Decimal:
+    decimals = int(config.get("numerical", {}).get("semantic_weight_decimals", 12))
+    return Decimal(1).scaleb(-decimals)
+
+
+def _format_decimal(value: Decimal, quantum: Decimal) -> str:
+    return format(value.quantize(quantum), "f")
+
+
+def _semantic_sha256(value: Any) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _coverage_metrics(
+    benchmark_rows: list[Mapping[str, Any]],
+    screening_by_entity: Mapping[str, Mapping[str, Any]],
+    config: Mapping[str, Any],
+    quantum: Decimal,
+) -> tuple[dict[str, str], str]:
+    states = ("observed", "no_match", "unknown", "unresolved_identity", "not_integrated")
+    totals = {state: Decimal("0") for state in states}
+    insufficient_states = set(config.get("unknown_handling", {}).get("insufficient_states", []))
+    insufficient = Decimal("0")
+    for row in benchmark_rows:
+        weight = Decimal(str(row["benchmark_weight"]))
+        view = screening_by_entity[str(row["canonical_entity_id"])]
+        counts = dict(view.get("coverage_state_counts", {}))
+        present = {state for state in states if int(counts.get(state, 0)) > 0}
+        for state in present:
+            totals[state] += weight
+        if present & insufficient_states:
+            insufficient += weight
+    return (
+        {state: _format_decimal(totals[state], quantum) for state in states},
+        _format_decimal(insufficient, quantum),
+    )
+
+
+def _compile_arm(
+    benchmark_rows: list[Mapping[str, Any]],
+    screening_by_entity: Mapping[str, Mapping[str, Any]],
+    arm: Mapping[str, Any],
+    config: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    quantum = _quantizer(config)
+    ordered = sorted(benchmark_rows, key=lambda row: str(row["security_id"]))
+    multipliers = {
+        key: Decimal(str(value)) for key, value in arm["decision_multipliers"].items()
+    }
+    staged: list[dict[str, Any]] = []
+    active_instruction_ids: list[str] = []
+    raw_total = Decimal("0")
+    excluded_weight = Decimal("0")
+    underweighted_weight = Decimal("0")
+    neutral_weight = Decimal("0")
+
+    for row in ordered:
+        entity_id = str(row["canonical_entity_id"])
+        view = screening_by_entity[entity_id]
+        decision = str(view["decision"])
+        benchmark_weight = Decimal(str(row["benchmark_weight"]))
+        multiplier = multipliers[decision]
+        raw_weight = benchmark_weight * multiplier
+        instruction = (
+            "EXCLUDE" if multiplier == 0
+            else "UNDERWEIGHT" if multiplier < 1
+            else "NEUTRAL"
+        )
+        instruction_id = f"{arm['arm_id']}:{row['security_id']}:{decision}:{instruction}"
+        if instruction != "NEUTRAL":
+            active_instruction_ids.append(instruction_id)
+        if instruction == "EXCLUDE":
+            excluded_weight += benchmark_weight
+        elif instruction == "UNDERWEIGHT":
+            underweighted_weight += benchmark_weight
+        else:
+            neutral_weight += benchmark_weight
+        staged.append({
+            "security_id": str(row["security_id"]),
+            "entity_id": entity_id,
+            "benchmark_weight": benchmark_weight,
+            "decision": decision,
+            "instruction": instruction,
+            "multiplier": multiplier,
+            "raw_weight": raw_weight,
+            "instruction_id": instruction_id,
+        })
+        raw_total += raw_weight
+
+    if raw_total == 0:
+        return None
+
+    target_rows: list[dict[str, Any]] = []
+    active_share = Decimal("0")
+    max_change = Decimal("0")
+    changed_count = 0
+    for item in staged:
+        target = item["raw_weight"] / raw_total
+        delta = target - item["benchmark_weight"]
+        absolute_delta = abs(delta)
+        active_share += absolute_delta / 2
+        max_change = max(max_change, absolute_delta)
+        if absolute_delta != 0:
+            changed_count += 1
+        if item["instruction"] != "NEUTRAL" and absolute_delta != 0:
+            attribution_kind = "DIRECT_POLICY_INSTRUCTION"
+            source_instruction_ids = [item["instruction_id"]]
+        elif absolute_delta != 0:
+            attribution_kind = "NORMALIZATION_REDISTRIBUTION"
+            source_instruction_ids = sorted(active_instruction_ids)
+        else:
+            attribution_kind = "NO_CHANGE"
+            source_instruction_ids = []
+        target_rows.append({
+            "security_id": item["security_id"],
+            "entity_id": item["entity_id"],
+            "benchmark_weight": _format_decimal(item["benchmark_weight"], quantum),
+            "target_weight": _format_decimal(target, quantum),
+            "allocation_delta": _format_decimal(delta, quantum),
+            "decision": item["decision"],
+            "instruction": item["instruction"],
+            "multiplier": _format_decimal(item["multiplier"], quantum),
+            "attribution": {
+                "kind": attribution_kind,
+                "source_instruction_ids": source_instruction_ids,
+            },
+        })
+
+    coverage_weights, insufficient_weight = _coverage_metrics(
+        ordered, screening_by_entity, config, quantum
+    )
+    semantic_target_sha = _semantic_sha256(target_rows)
+    status = (
+        "POLICY_TRANSMISSION_ZERO"
+        if changed_count == 0
+        else "POLICY_TRANSMISSION_OK"
+    )
+    return {
+        "arm_id": arm["arm_id"],
+        "allocation_policy_id": arm["allocation_policy_id"],
+        "allocation_policy_version": arm["allocation_policy_version"],
+        "status": status,
+        "semantic_target_sha256": semantic_target_sha,
+        "target_weights": target_rows,
+        "metrics": {
+            "active_share": _format_decimal(active_share, quantum),
+            "reallocation_mass": _format_decimal(active_share, quantum),
+            "excluded_benchmark_weight": _format_decimal(excluded_weight, quantum),
+            "underweighted_benchmark_weight": _format_decimal(underweighted_weight, quantum),
+            "neutral_benchmark_weight": _format_decimal(neutral_weight, quantum),
+            "changed_security_count": changed_count,
+            "max_absolute_weight_change": _format_decimal(max_change, quantum),
+            "coverage_state_benchmark_weight": coverage_weights,
+            "insufficient_coverage_benchmark_weight": insufficient_weight,
+        },
+    }
 
 
 def compile_policy_family(
@@ -121,9 +280,27 @@ def compile_policy_family(
     ):
         return _failure("BLOCK_IDENTITY")
 
+    arms: list[dict[str, Any]] = []
+    for arm in config["arms"]:
+        compiled = _compile_arm(benchmark_rows, screening_by_entity, arm, config)
+        if compiled is None:
+            return _failure("BLOCK_POLICY_INFEASIBLE")
+        arms.append(compiled)
+
     return {
         "status": "FROZEN_POLICY_FAMILY",
         "artifact_version": config.get("artifact_version"),
-        "arms": [],
-        "manifest": {"paper_only": True, "real_money_authority": False},
+        "arms": arms,
+        "manifest": {
+            "paper_only": True,
+            "real_money_authority": False,
+            "market_data_inputs_allowed": False,
+            "policy_family_sha256": _semantic_sha256([
+                {
+                    "arm_id": arm["arm_id"],
+                    "semantic_target_sha256": arm["semantic_target_sha256"],
+                }
+                for arm in arms
+            ]),
+        },
     }
