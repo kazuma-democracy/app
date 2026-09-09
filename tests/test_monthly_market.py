@@ -75,3 +75,88 @@ def test_pdf_extractor_accepts_only_local_path_argument() -> None:
     params = set(inspect.signature(module.extract_pdf_text).parameters)
     assert params == {"path"}
     assert not any(token in params for token in {"url", "download", "session", "client"})
+
+
+PRICE_TEXT = """Year/Month Code ...
+2026/07 1301 KYOKUYO CO.,LTD. Fishery P loan 100 4,360.00 1 4,715.00 29 4,295.00 1 4,540.00 31 4,512.95 1,002,200 914,700 87,500 4,521,223,022 4,125,439,000 395,784,022 22
+2026/07 2163 ARTNER CO.,LTD. Services ex-subscription right P loan 100 1,962.00 1 2,044.00 7 1,961.00 1 2,016.00 29 2,009.20 404,700 384,800 19,900 812,838,970 772,861,800 39,977,170 20
+2026/07 2163 ARTNER CO.,LTD. Services ex-subscription right P loan 100 951.00 30 963.00 30 939.00 30 951.00 31 952.00 217,200 210,200 7,000 207,211,150 200,530,300 6,680,850 2
+"""
+
+
+def test_price_parser_extracts_normal_month_end_close() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.parse_stock_price_table_text(
+        PRICE_TEXT,
+        period="2026-07",
+        valuation_date="2026-07-31",
+        security_ids=["TSE:1301"],
+        price_role="end",
+    )
+    assert result["status"] == "PRICE_SNAPSHOT_OK"
+    row = result["rows"][0]
+    assert row["security_id"] == "TSE:1301"
+    assert row["close_price"] == "4540.000000000000"
+    assert row["close_date"] == "2026-07-31"
+    assert row["source_row_count"] == 1
+
+
+def test_price_parser_selects_unique_post_action_row_by_close_date() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.parse_stock_price_table_text(
+        PRICE_TEXT,
+        period="2026-07",
+        valuation_date="2026-07-31",
+        security_ids=["TSE:2163"],
+        price_role="end",
+    )
+    assert result["status"] == "PRICE_SNAPSHOT_OK"
+    row = result["rows"][0]
+    assert row["close_price"] == "951.000000000000"
+    assert row["close_date"] == "2026-07-31"
+    assert row["source_row_count"] == 2
+    assert row["selection_reason"] == "UNIQUE_CLOSE_DATE_MATCH"
+
+
+def test_price_parser_missing_requested_code_uses_role_specific_blocker() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    start = module.parse_stock_price_table_text(
+        PRICE_TEXT, "2026-07", "2026-07-31", ["TSE:9999"], "start"
+    )
+    end = module.parse_stock_price_table_text(
+        PRICE_TEXT, "2026-07", "2026-07-31", ["TSE:9999"], "end"
+    )
+    assert start["status"] == "BLOCK_START_PRICE"
+    assert end["status"] == "BLOCK_END_PRICE"
+
+
+def test_price_parser_ambiguous_duplicate_rows_block_corporate_action() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    ambiguous = PRICE_TEXT + (
+        "2026/07 2163 ARTNER CO.,LTD. Services P loan 100 950.00 31 960.00 31 "
+        "940.00 31 950.00 31 950.00 1 1 0 950 950 0 1\n"
+    )
+    result = module.parse_stock_price_table_text(
+        ambiguous, "2026-07", "2026-07-31", ["TSE:2163"], "end"
+    )
+    assert result["status"] == "BLOCK_CORPORATE_ACTION"
+
+
+def test_price_parser_rejects_noncanonical_security_identifier() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.parse_stock_price_table_text(
+        PRICE_TEXT, "2026-07", "2026-07-31", ["ARTNER"], "end"
+    )
+    assert result["status"] == "BLOCK_IDENTITY"
+
+
+def test_price_parser_hash_is_independent_of_requested_order() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    left = module.parse_stock_price_table_text(
+        PRICE_TEXT, "2026-07", "2026-07-31", ["TSE:1301", "TSE:2163"], "end"
+    )
+    right = module.parse_stock_price_table_text(
+        PRICE_TEXT, "2026-07", "2026-07-31", ["TSE:2163", "TSE:1301"], "end"
+    )
+    assert left["semantic_rows_sha256"] == right["semantic_rows_sha256"]
+    assert left["rows"] == right["rows"]

@@ -48,7 +48,7 @@
 - Modify: `tests/test_monthly_market.py`
 
 **Interfaces:**
-- `parse_stock_price_table_text(text, period, valuation_date, security_ids) -> dict`
+- `parse_stock_price_table_text(text, period, valuation_date, security_ids, price_role) -> dict`
 - Output row: `{security_id, security_code, close_price, close_date, source_row_count, selection_reason}`.
 - [ ] **Step 1: Add RED fixtures** reproducing real July text shapes: normal `1301` row and duplicate `2163` ex-rights rows. Assert July 31 selects `1301=4540.00` and the unique `2163` row whose Close Date is 31 (`951.00`), not the pre-rights row ending July 29.
 - [ ] **Step 2: Add RED cases** for requested code absent -> `BLOCK_END_PRICE`/`BLOCK_START_PRICE`, duplicate rows with no unique valuation-date match -> `BLOCK_CORPORATE_ACTION`, and exact code only (`2163` must not match names/other codes).
