@@ -14,7 +14,7 @@ The first proof vehicle is **Experiment 001 — Peace Capital**.
 
 - **M1 — Reproducible Evidence Graph: COMPLETE.** Measured clean reproduction is recorded in `docs/M1_ACCEPTANCE.md`.
 - **M2 — Explainable company screener: COMPLETE.** #42 coverage, #43 deterministic company screening and #44 static explainability report are complete. Measured #44 acceptance is recorded in `docs/results/M2_2C_EXPLAINABLE_SCREENER_V01.md`; `NONE` remains explicitly distinct from PASS/clean/safe.
-- **M3 - Peace Capital paper portfolio: IN PROGRESS.** The Evidence/identity/screening, benchmark mapping, constructor foundation and zero-cost monthly evaluation contract are complete. The current bounded task is **#84 Policy Compiler v0**, followed by reusable monthly market primitives (#56), leak-safe Historical Replay (#85), and integrated policy-family evaluation (#51).
+- **M3 - Peace Capital paper portfolio: IN PROGRESS.** The Evidence/identity/screening, benchmark mapping, constructor foundation and zero-cost monthly evaluation contract are complete. Policy Compiler (#84) and reusable monthly market primitives (#56) are complete. The current bounded task is **#85 leak-safe Historical Replay**, followed by integrated policy-family evaluation (#51).
 - **Phase 5–6 future design:** a Purchase Route Router is preregistered as the first second-domain candidate. The current product strategy is **distribution-first / integration-first**: begin where users already browse or compare products, use thin browser/share/URL handoffs to invoke WA Commons, test books first, then electronics/PC parts, and treat standalone WA product search as an optional later client rather than the MVP acquisition surface. The first public purchasing experiment is also **local-first / serverless-friendly / ship-small**: core routing should not require an always-on WA Commons application server, v0 is affiliate-free, bounded retailer coverage is acceptable when explicit, and the first release should expose documented contribution paths so verified coverage can grow as a commons. See `docs/PURCHASE_ROUTER_PROPOSAL.md`. This is future design only and does not displace current M3 work or waive Phase 5/6 gates.
 - **Phase 0 governance cleanup remains open.** #8 ideological-bias red-team and #9 Japanese/English terminology review are still required and are not considered completed by later technical progress.
 
@@ -194,10 +194,10 @@ The 100-company cohort remains a regression/explainability fixture, not an inves
 
 The existing L2 constructor remains reusable financial-fidelity infrastructure. It is no longer assumed to be the only policy-to-allocation control surface.
 
-### Workstream 3E - Policy Transmission compiler - CURRENT
+### Workstream 3E - Policy Transmission compiler - COMPLETE
 **#80:** superseded before implementation because its single minimal-intervention freeze could structurally collapse toward the benchmark.
 
-**#84 - M3.3b2:** implement Policy Compiler v0 and preregister P0/P1/P2 over the same accepted #50/#55 snapshot. Primary outputs are target weights plus Policy Transmission metrics computed before market returns:
+**#84 - M3.3b2:** completed - Policy Compiler v0 preregisters P0/P1/P2 over the same accepted #50/#55 snapshot. Primary outputs are target weights plus Policy Transmission metrics computed before market returns:
 - active share / reallocation mass;
 - instruction-affected benchmark weight;
 - changed-security count and maximum single-name change;
@@ -206,12 +206,12 @@ The existing L2 constructor remains reusable financial-fidelity infrastructure. 
 
 P1 may honestly return `POLICY_TRANSMISSION_ZERO`. P2 uses the preregistered `WATCH -> 0.5x` user-policy instruction without treating it as a universal company score.
 
-### Workstream 3F - Free monthly market primitives and leak-safe Historical Replay - OPEN
+### Workstream 3F - Free monthly market primitives and leak-safe Historical Replay - CURRENT
 **#78 - M3.3c0:** completed - zero-purchase/monthly/fail-closed source, rights and return contract. October 2026 remains the true future holdout.
 
-**#56 - M3.3c:** after #84, implement reusable month-parameterized JPX price/benchmark-return/corporate-action primitives. Raw source rows remain local-only and missing evidence/data fails closed.
+**#56 - M3.3c:** completed - reusable month-parameterized JPX price/benchmark-return/corporate-action primitives are validated against official June/July 2026 JPX files with deterministic, fail-closed behavior. Raw source rows remain local-only. See `docs/results/M3_3C_MONTHLY_MARKET_PRIMITIVES_V01.md`.
 
-**#85 - M3.3c0 replay:** after #84/#56, select the most recent reproducible three consecutive historical months using metadata/existence only, freeze that window before return loading, and run a leak-safe walk-forward replay. Current constituents/evidence may never be projected backward.
+**#85 - M3.3c0 replay:** current - select the most recent reproducible three consecutive historical months using metadata/existence only, freeze that window before return loading, and run a leak-safe walk-forward replay. Current constituents/evidence may never be projected backward.
 
 After the three-month replay is GREEN, extend the identical frozen method to 12 months and optionally 24 months if point-in-time reconstruction remains reproducible and affordable.
 
@@ -565,11 +565,11 @@ Financial foundation:
 
 #49 + #50 + #55 + #78
         ->
-#84 Policy Compiler v0 + current-snapshot Policy Transmission proof
+#84 Policy Compiler v0 + current-snapshot Policy Transmission proof - COMPLETE
         ->
-#56 reusable free-monthly market-return/corporate-action primitives
+#56 reusable free-monthly market-return/corporate-action primitives - COMPLETE
         ->
-#85 leak-safe three-month Historical Replay
+#85 leak-safe three-month Historical Replay - CURRENT
         ->
 #51 integrated policy-family evaluation
         ->
@@ -608,10 +608,10 @@ Current near-term M3 state:
 - **#42 / #43 / #44 - COMPLETE:** M2 coverage, deterministic screening and explainability are merged.
 - **#45 / #46 / #47 / #49 / #50 / #53 / #54 / #55 / #78 - COMPLETE:** M3 universe, identity, evidence, screening, benchmark, constructor foundation and zero-cost monthly evaluation contract are durable prerequisites.
 - **#80 - SUPERSEDED / NOT PLANNED:** old single-portfolio freeze must not be implemented.
-- **#84 - CURRENT / READY:** one bounded Policy Compiler v0 + current-snapshot Policy Transmission proof. No market-return input is permitted.
-- **#56 - READY only after #84:** reusable month-parameterized free JPX market-return/corporate-action primitives; no replay-window selection.
-- **#85 - READY only after #84/#56:** metadata-only three-month replay-window qualification, freeze and leak-safe execution.
-- **#51 - READY only after #84/#56/#85 and other completed prerequisites:** pure integrated policy-family evaluation; methodology changes remain blockers.
+- **#84 - COMPLETE:** Policy Compiler v0 + current-snapshot Policy Transmission proof is merged and verified.
+- **#56 - COMPLETE:** reusable month-parameterized free JPX market-return/corporate-action primitives are validated and ready for #85 consumption.
+- **#85 - CURRENT / READY:** metadata-only three-month replay-window qualification, freeze and leak-safe execution.
+- **#51 - READY only after #85 and other completed prerequisites:** pure integrated policy-family evaluation; methodology changes remain blockers.
 
 Phases 4-9 are **not yet worker-ready as whole tasks**. `docs/PURCHASE_ROUTER_PROPOSAL.md` remains preregistered future design rather than current execution authority.
 
@@ -646,12 +646,10 @@ WA Commons should **not**:
 
 M2 is complete. The shortest M3 path is now explicit:
 
-1. **#84 - Policy Compiler v0:** compile the preregistered P0/P1/P2 family from the accepted #50 benchmark and #55 screening snapshot, then freeze Policy Transmission metrics before any corresponding return data is loaded.
-2. **#56 - reusable free-monthly market primitives:** once #84 is merged, implement month-parameterized JPX price, dividend/corporate-action and TOPIX monthly-return normalization with fail-closed evidence handling.
-3. **#85 - three-month Historical Replay:** choose the exact window by metadata/existence only, freeze it before return loading, then execute the same P0/P1/P2 semantics with strict as-known and point-in-time controls.
-4. **12-24 month extension:** only after the three-month path is reproducible and leak-safe; extension length is not selected from observed performance.
-5. **2026-10 future holdout:** preserve October as a distinct prospective test and do not use its results to tune the compiler/replay method.
-6. **#51 - integrated policy-family evaluation:** report Policy Transmission first and financial consequences second, with blocked and unfavorable results preserved.
+1. **#85 - three-month Historical Replay:** choose the exact window by metadata/existence only, freeze it before return loading, then execute the same P0/P1/P2 semantics with strict as-known and point-in-time controls.
+2. **12-24 month extension:** only after the three-month path is reproducible and leak-safe; extension length is not selected from observed performance.
+3. **2026-10 future holdout:** preserve October as a distinct prospective test and do not use its results to tune the compiler/replay method.
+4. **#51 - integrated policy-family evaluation:** report Policy Transmission first and financial consequences second, with blocked and unfavorable results preserved.
 
 The historical M1.1 JPX retrieval URL observed returning 404 during #44 acceptance remains a separately scoped maintenance concern and does not modify this M3 sequence.
 
