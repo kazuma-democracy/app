@@ -355,6 +355,12 @@ def compile_policy_family(
             "paper_only": True,
             "real_money_authority": False,
             "market_data_inputs_allowed": False,
+            "benchmark_semantic_mapping_sha256": benchmark_sha,
+            "screening_sha256": screening_sha,
+            "profile_id": contract.get("profile_id"),
+            "profile_version": str(contract.get("profile_version")),
+            "policy_sha256": contract.get("policy_sha256"),
+            "config_semantic_sha256": _semantic_sha256(config),
             "policy_family_sha256": _semantic_sha256([
                 {
                     "arm_id": arm["arm_id"],
@@ -364,3 +370,56 @@ def compile_policy_family(
             ]),
         },
     }
+
+
+def write_policy_transmission(
+    payload: Mapping[str, Any],
+    local_output: str | Path,
+    public_output: str | Path,
+) -> None:
+    local_path = Path(local_output)
+    public_path = Path(public_output)
+    if local_path.resolve() == public_path.resolve():
+        raise ValueError("local and public outputs must differ")
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    public_path.parent.mkdir(parents=True, exist_ok=True)
+    local_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    manifest = dict(payload.get("manifest", {}))
+    public_payload: dict[str, Any] = {
+        "artifact_version": payload.get("artifact_version"),
+        "status": payload.get("status"),
+    }
+    for key in (
+        "paper_only",
+        "real_money_authority",
+        "market_data_inputs_allowed",
+        "benchmark_semantic_mapping_sha256",
+        "screening_sha256",
+        "profile_id",
+        "profile_version",
+        "policy_sha256",
+        "config_semantic_sha256",
+        "policy_family_sha256",
+        "code_commit",
+    ):
+        if key in manifest:
+            public_payload[key] = manifest[key]
+    public_payload["arms"] = [
+        {
+            "arm_id": arm["arm_id"],
+            "allocation_policy_id": arm["allocation_policy_id"],
+            "allocation_policy_version": arm["allocation_policy_version"],
+            "status": arm["status"],
+            "semantic_target_sha256": arm["semantic_target_sha256"],
+            "metrics": arm["metrics"],
+        }
+        for arm in payload.get("arms", [])
+    ]
+    public_path.write_text(
+        json.dumps(public_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )

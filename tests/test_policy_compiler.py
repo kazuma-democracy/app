@@ -210,3 +210,74 @@ def test_semantic_target_weights_sum_to_exactly_one_after_rounding() -> None:
     from decimal import Decimal
     assert sum(Decimal(row["target_weight"]) for row in p2["target_weights"]) == Decimal("1.000000000000")
     assert all(len(row["target_weight"].split(".")[1]) == 12 for row in p2["target_weights"])
+
+
+def test_writer_rejects_same_local_and_public_path(tmp_path) -> None:
+    import pytest
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    payload = module.compile_policy_family(benchmark, screening, config)
+    target = tmp_path / "same.json"
+    with pytest.raises(ValueError, match="must differ"):
+        module.write_policy_transmission(payload, target, target)
+
+
+def test_writer_public_artifact_is_aggregate_only(tmp_path) -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    payload = module.compile_policy_family(benchmark, screening, config)
+    payload["manifest"]["code_commit"] = "test-commit"
+    local_output = tmp_path / "local.json"
+    public_output = tmp_path / "public.json"
+    module.write_policy_transmission(payload, local_output, public_output)
+    local_payload = json.loads(local_output.read_text(encoding="utf-8"))
+    public_payload = json.loads(public_output.read_text(encoding="utf-8"))
+    public_text = public_output.read_text(encoding="utf-8")
+    assert "target_weights" in local_payload["arms"][2]
+    assert all("target_weights" not in arm and "instructions" not in arm for arm in public_payload["arms"])
+    assert "claim:2" not in public_text
+    assert "wa:1" not in public_text
+    assert public_payload["code_commit"] == "test-commit"
+
+
+def test_policy_compiler_cli_writes_outputs_and_exposes_no_market_inputs(tmp_path) -> None:
+    import subprocess
+    import sys
+    benchmark, screening, config = minimal_inputs()
+    benchmark_path = tmp_path / "benchmark.json"
+    screening_path = tmp_path / "screening.json"
+    config_path = tmp_path / "config.json"
+    local_output = tmp_path / "local.json"
+    public_output = tmp_path / "public.json"
+    benchmark_path.write_text(json.dumps(benchmark), encoding="utf-8")
+    screening_path.write_text(json.dumps(screening), encoding="utf-8")
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    script = ROOT / "scripts" / "run_policy_compiler.py"
+    result = subprocess.run([
+        sys.executable, str(script),
+        "--benchmark", str(benchmark_path),
+        "--screening", str(screening_path),
+        "--config", str(config_path),
+        "--local-output", str(local_output),
+        "--public-output", str(public_output),
+        "--code-commit", "test-commit",
+    ], cwd=ROOT, text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    public_payload = json.loads(public_output.read_text(encoding="utf-8"))
+    assert public_payload["status"] == "FROZEN_POLICY_FAMILY"
+    help_result = subprocess.run([sys.executable, str(script), "--help"], cwd=ROOT, text=True, capture_output=True)
+    help_text = help_result.stdout.lower()
+    assert "--price" not in help_text and "--return" not in help_text and "--dividend" not in help_text
+
+
+def test_public_artifact_pins_input_provenance(tmp_path) -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    payload = module.compile_policy_family(benchmark, screening, config)
+    payload["manifest"]["code_commit"] = "test-commit"
+    module.write_policy_transmission(payload, tmp_path / "local.json", tmp_path / "public.json")
+    public_payload = json.loads((tmp_path / "public.json").read_text(encoding="utf-8"))
+    assert public_payload["benchmark_semantic_mapping_sha256"] == BENCHMARK_SHA
+    assert public_payload["screening_sha256"] == SCREENING_SHA
+    assert public_payload["policy_sha256"] == POLICY_SHA
+    assert len(public_payload["config_semantic_sha256"]) == 64
