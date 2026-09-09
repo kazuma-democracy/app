@@ -1,0 +1,73 @@
+{
+  "candidate_inventory_version": "m3.3c0-historical-replay-candidates-v0.1",
+  "candidate_results": [
+    {
+      "blockers": [
+        "MISSING_BENCHMARK_SNAPSHOT"
+      ],
+      "decision_cutoff": "2025-12-30T15:30:00+09:00",
+      "evaluation_period": "2026-01",
+      "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    },
+    {
+      "blockers": [
+        "MISSING_BENCHMARK_SNAPSHOT"
+      ],
+      "decision_cutoff": "2026-01-30T15:30:00+09:00",
+      "evaluation_period": "2026-02",
+      "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    },
+    {
+      "blockers": [
+        "MISSING_BENCHMARK_SNAPSHOT"
+      ],
+      "decision_cutoff": "2026-02-27T15:30:00+09:00",
+      "evaluation_period": "2026-03",
+      "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    },
+    {
+      "blockers": [
+        "MISSING_BENCHMARK_SNAPSHOT"
+      ],
+      "decision_cutoff": "2026-03-31T15:30:00+09:00",
+      "evaluation_period": "2026-04",
+      "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    },
+    {
+      "blockers": [
+        "MISSING_BENCHMARK_SNAPSHOT"
+      ],
+      "decision_cutoff": "2026-04-30T15:30:00+09:00",
+      "evaluation_period": "2026-05",
+      "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    },
+    {
+      "blockers": [
+        "MISSING_BENCHMARK_SNAPSHOT"
+      ],
+      "decision_cutoff": "2026-05-29T15:30:00+09:00",
+      "evaluation_period": "2026-06",
+      "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    },
+    {
+      "blockers": [
+        "ENGINEERING_VALIDATION_PERIOD"
+      ],
+      "decision_cutoff": "2026-06-30T15:30:00+09:00",
+      "evaluation_period": "2026-07",
+      "status": "BLOCK_REPRODUCIBILITY"
+    },
+    {
+      "blockers": [
+        "MISSING_BENCHMARK_SNAPSHOT"
+      ],
+      "decision_cutoff": "2026-07-31T15:30:00+09:00",
+      "evaluation_period": "2026-08",
+      "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    }
+  ],
+  "code_commit": "20e8ce1568a6f05567c63bc37ed0d0a531c51bf6",
+  "selection_input_semantics": "METADATA_ONLY_NO_RETURNS",
+  "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE",
+  "window": []
+}
