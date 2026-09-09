@@ -160,3 +160,80 @@ def test_price_parser_hash_is_independent_of_requested_order() -> None:
     )
     assert left["semantic_rows_sha256"] == right["semantic_rows_sha256"]
     assert left["rows"] == right["rows"]
+
+
+TOPIX_TEXT = """ROI of Dividend-Included Stock Price Indices (As of the End of Jul. 2026)
+Index 1-Month 3-Month 6-Month 1-Year
+TOPIX 0.22 5.18 8.41 12.34
+"""
+
+EX_RIGHTS_TEXT = """Ex-Rights Information July 2026
+2026/07/30 2163 ARTNER CO.,LTD. 2026/07/31 Stock Split 1:2
+"""
+
+LISTED_CHANGES_TEXT = """Listed Company Changes July 2026
+Delisting
+2026/07/31 3681 V-CUBE, INC.
+Margin Trading
+2026/07/15 1301 KYOKUYO CO.,LTD.
+Name Change
+2026/07/01 2163 ARTNER CO.,LTD.
+"""
+
+
+def test_topix_monthly_roi_parser_extracts_official_one_month_return() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.parse_topix_monthly_roi_text(TOPIX_TEXT, period="2026-07")
+    assert result["status"] == "BENCHMARK_ROI_OK"
+    assert result["one_month_percent"] == "0.220000000000"
+    assert result["decimal_return"] == "0.002200000000"
+
+
+def test_topix_monthly_roi_parser_blocks_missing_or_conflicting_rows() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    missing = module.parse_topix_monthly_roi_text("As of the End of Jul. 2026\nNikkei 225 1.00", "2026-07")
+    conflicting = module.parse_topix_monthly_roi_text(TOPIX_TEXT + "TOPIX 0.23 5.18 8.41 12.34\n", "2026-07")
+    wrong_period = module.parse_topix_monthly_roi_text(TOPIX_TEXT, "2026-06")
+    assert missing["status"] == "BLOCK_BENCHMARK_MONTHLY_RETURN"
+    assert conflicting["status"] == "BLOCK_BENCHMARK_MONTHLY_RETURN"
+    assert wrong_period["status"] == "BLOCK_BENCHMARK_MONTHLY_RETURN"
+
+
+def test_ex_rights_parser_normalizes_split_event_for_exact_code() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.parse_ex_rights_text(EX_RIGHTS_TEXT, "2026-07", ["TSE:2163", "TSE:1301"])
+    assert result["status"] == "EVENTS_OK"
+    assert result["events"] == [{
+        "security_id": "TSE:2163",
+        "security_code": "2163",
+        "event_type": "STOCK_SPLIT",
+        "ex_rights_date": "2026-07-30",
+        "record_date": "2026-07-31",
+        "split_ratio": "1:2",
+    }]
+
+
+def test_ex_rights_parser_does_not_invent_event_for_absent_code() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.parse_ex_rights_text(EX_RIGHTS_TEXT, "2026-07", ["TSE:1301"])
+    assert result == {"status": "EVENTS_OK", "period": "2026-07", "events": []}
+
+
+def test_listed_changes_parser_detects_only_delisting_rows() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.parse_listed_company_changes_text(
+        LISTED_CHANGES_TEXT, "2026-07", ["TSE:3681", "TSE:1301", "TSE:2163"]
+    )
+    assert result["status"] == "EVENTS_OK"
+    assert result["events"] == [{
+        "security_id": "TSE:3681",
+        "security_code": "3681",
+        "event_type": "DELISTING",
+        "effective_date": "2026-07-31",
+    }]
+
+
+def test_event_parsers_reject_noncanonical_identity() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    assert module.parse_ex_rights_text(EX_RIGHTS_TEXT, "2026-07", ["ARTNER"])["status"] == "BLOCK_IDENTITY"
+    assert module.parse_listed_company_changes_text(LISTED_CHANGES_TEXT, "2026-07", ["V-CUBE"])["status"] == "BLOCK_IDENTITY"

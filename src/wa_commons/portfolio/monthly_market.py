@@ -120,3 +120,107 @@ def parse_stock_price_table_text(
         "rows": rows,
         "semantic_rows_sha256": hashlib.sha256(semantic.encode("utf-8")).hexdigest(),
     }
+
+
+_MONTH_ABBR = {
+    "01": "Jan.", "02": "Feb.", "03": "Mar.", "04": "Apr.",
+    "05": "May", "06": "Jun.", "07": "Jul.", "08": "Aug.",
+    "09": "Sep.", "10": "Oct.", "11": "Nov.", "12": "Dec.",
+}
+
+
+def _canonical_security_ids(security_ids: list[str]) -> tuple[bool, set[str]]:
+    if not all(re.fullmatch(r"TSE:\d{4}", security_id) for security_id in security_ids):
+        return False, set()
+    return True, {security_id.removeprefix("TSE:") for security_id in security_ids}
+
+
+def parse_topix_monthly_roi_text(text: str, period: str) -> dict[str, Any]:
+    match = re.fullmatch(r"(\d{4})-(\d{2})", period)
+    if not match:
+        return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN"}
+    year, month = match.groups()
+    marker = f"As of the End of {_MONTH_ABBR.get(month, '')} {year}"
+    if marker not in text:
+        return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN", "period": period}
+
+    values: list[str] = []
+    for line in text.splitlines():
+        row = re.match(r"^TOPIX\s+(-?\d+(?:\.\d+)?)\b", line.strip())
+        if row:
+            values.append(row.group(1))
+    if len(values) != 1:
+        return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN", "period": period}
+
+    percent = Decimal(values[0])
+    return {
+        "status": "BENCHMARK_ROI_OK",
+        "period": period,
+        "one_month_percent": f"{percent:.12f}",
+        "decimal_return": f"{(percent / Decimal('100')):.12f}",
+    }
+
+
+def parse_ex_rights_text(text: str, period: str, security_ids: list[str]) -> dict[str, Any]:
+    valid, requested = _canonical_security_ids(security_ids)
+    if not valid:
+        return {"status": "BLOCK_IDENTITY", "period": period, "events": []}
+
+    events: list[dict[str, Any]] = []
+    pattern = re.compile(
+        r"^(?P<ex>\d{4}/\d{2}/\d{2})\s+(?P<code>\d{4})\s+.*?"
+        r"(?P<record>\d{4}/\d{2}/\d{2})\s+Stock Split\s+(?P<ratio>\d+:\d+)\s*$"
+    )
+    for line in text.splitlines():
+        match = pattern.match(line.strip())
+        if not match or match.group("code") not in requested:
+            continue
+        ex_date = match.group("ex").replace("/", "-")
+        if not ex_date.startswith(period):
+            continue
+        code = match.group("code")
+        events.append({
+            "security_id": f"TSE:{code}",
+            "security_code": code,
+            "event_type": "STOCK_SPLIT",
+            "ex_rights_date": ex_date,
+            "record_date": match.group("record").replace("/", "-"),
+            "split_ratio": match.group("ratio"),
+        })
+    events.sort(key=lambda event: (event["security_id"], event["ex_rights_date"], event["split_ratio"]))
+    return {"status": "EVENTS_OK", "period": period, "events": events}
+
+
+def parse_listed_company_changes_text(text: str, period: str, security_ids: list[str]) -> dict[str, Any]:
+    valid, requested = _canonical_security_ids(security_ids)
+    if not valid:
+        return {"status": "BLOCK_IDENTITY", "period": period, "events": []}
+
+    events: list[dict[str, Any]] = []
+    section: str | None = None
+    row_pattern = re.compile(r"^(?P<date>\d{4}/\d{2}/\d{2})\s+(?P<code>\d{4})\b")
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if line == "Delisting":
+            section = "DELISTING"
+            continue
+        if line in {"Margin Trading", "Name Change", "New Listings", "Listing"}:
+            section = None
+            continue
+        if section != "DELISTING":
+            continue
+        match = row_pattern.match(line)
+        if not match or match.group("code") not in requested:
+            continue
+        effective_date = match.group("date").replace("/", "-")
+        if not effective_date.startswith(period):
+            continue
+        code = match.group("code")
+        events.append({
+            "security_id": f"TSE:{code}",
+            "security_code": code,
+            "event_type": "DELISTING",
+            "effective_date": effective_date,
+        })
+    events.sort(key=lambda event: (event["security_id"], event["effective_date"]))
+    return {"status": "EVENTS_OK", "period": period, "events": events}
