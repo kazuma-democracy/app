@@ -382,3 +382,87 @@ def test_monthly_return_payload_hash_and_rows_are_order_independent() -> None:
     right = module.build_monthly_return_payload(held_security_ids=["TSE:2163", "TSE:1301"], **common)
     assert left["semantic_payload_sha256"] == right["semantic_payload_sha256"]
     assert left["rows"] == right["rows"]
+
+
+
+def _load_monthly_cli_module():
+    import importlib.util
+    script = ROOT / "scripts" / "run_monthly_market.py"
+    spec = importlib.util.spec_from_file_location("run_monthly_market", script)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_monthly_cli_exposes_only_explicit_local_input_options() -> None:
+    module = _load_monthly_cli_module()
+    parser = module.build_parser()
+    help_text = parser.format_help()
+    required = {
+        "--period", "--start-price-pdf", "--end-price-pdf", "--benchmark-pdf",
+        "--ex-rights-pdf", "--listed-changes-pdf", "--held-securities",
+        "--evidence-resolutions", "--source-manifest", "--config",
+        "--local-output", "--public-output", "--code-commit",
+    }
+    assert all(option in help_text for option in required)
+    assert not any(token in help_text.lower() for token in {"--url", "--download", "--network"})
+
+
+def test_monthly_cli_rejects_identical_local_and_public_output_paths(tmp_path: Path) -> None:
+    module = _load_monthly_cli_module()
+    path = tmp_path / "same.json"
+    try:
+        module.validate_output_paths(path, path)
+    except ValueError as exc:
+        assert "distinct" in str(exc).lower()
+    else:
+        raise AssertionError("identical output paths must be rejected")
+
+
+def test_public_monthly_artifact_redacts_security_and_performance_rows_without_rights() -> None:
+    module = _load_monthly_cli_module()
+    local_payload = {
+        "status": "MONTHLY_RETURN_OK",
+        "period": "2026-07",
+        "benchmark_decimal_return": "0.002200000000",
+        "rows": [{
+            "security_id": "TSE:1301",
+            "start_price": "100.000000000000",
+            "end_price": "110.000000000000",
+            "total_wealth_return": "0.100000000000",
+            "state": "RETURN_OK_NO_ACTION",
+            "evidence_refs": ["issuer:secret-row"],
+        }],
+        "semantic_payload_sha256": "abc123",
+        "provenance": {"source_hashes": ["sha256:one"]},
+    }
+    public = module.build_public_artifact(
+        local_payload,
+        performance_publication_rights="NOT_CLEARED",
+        artifact_version="m3.3c-monthly-market-v0.1",
+        code_commit="deadbeef",
+        source_hashes=["sha256:one"],
+    )
+    serialized = json.dumps(public, sort_keys=True)
+    assert public["paper_only"] is True
+    assert public["performance_publication_rights"] == "NOT_CLEARED"
+    assert public["semantic_payload_sha256"] == "abc123"
+    assert public["status_counts"] == {"RETURN_OK_NO_ACTION": 1}
+    assert "TSE:1301" not in serialized
+    assert "100.000000000000" not in serialized
+    assert "110.000000000000" not in serialized
+    assert "0.100000000000" not in serialized
+    assert "0.002200000000" not in serialized
+    assert "issuer:secret-row" not in serialized
+
+
+def test_source_manifest_period_mismatch_fails_closed() -> None:
+    module = _load_monthly_cli_module()
+    manifest = {"period": "2026-06", "sources": {}}
+    try:
+        module.validate_source_manifest_period(manifest, "2026-07")
+    except ValueError as exc:
+        assert "period" in str(exc).lower()
+    else:
+        raise AssertionError("source manifest period mismatch must fail")
