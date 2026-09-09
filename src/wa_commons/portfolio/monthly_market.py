@@ -141,25 +141,34 @@ def parse_topix_monthly_roi_text(text: str, period: str) -> dict[str, Any]:
         return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN"}
     year, month = match.groups()
     marker = f"As of the End of {_MONTH_ABBR.get(month, '')} {year}"
-    if marker not in text:
+    lines = text.splitlines()
+    marker_index = next((i for i, line in enumerate(lines) if marker in line), None)
+    if marker_index is None:
         return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN", "period": period}
+    section: list[str] = []
+    for line in lines[marker_index + 1:]:
+        if re.match(r"^\d+-\d+\s", line.strip()):
+            break
+        section.append(line)
 
     values: list[str] = []
-    for line in text.splitlines():
-        row = re.match(r"^TOPIX\s+(-?\d+(?:\.\d+)?)\b", line.strip())
-        if row:
-            values.append(row.group(1))
+    for line in section:
+        normalized = line.strip().replace("\u3000", " ")
+        real_row = re.match(r"^T\s+O\s+P\s+I\s+X\s+(-?\d[\d,]*\.\d+)\s+(-?\d+(?:\.\d+)?)\b", normalized)
+        if real_row:
+            values.append(real_row.group(2))
+            continue
+        simple_row = re.match(r"^TOPIX\s+(-?\d+(?:\.\d+)?)\b", normalized)
+        if simple_row:
+            values.append(simple_row.group(1))
     if len(values) != 1:
         return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN", "period": period}
-
     percent = Decimal(values[0])
     return {
-        "status": "BENCHMARK_ROI_OK",
-        "period": period,
+        "status": "BENCHMARK_ROI_OK", "period": period,
         "one_month_percent": f"{percent:.12f}",
         "decimal_return": f"{(percent / Decimal('100')):.12f}",
     }
-
 
 def parse_ex_rights_text(text: str, period: str, security_ids: list[str]) -> dict[str, Any]:
     valid, requested = _canonical_security_ids(security_ids)
@@ -167,15 +176,21 @@ def parse_ex_rights_text(text: str, period: str, security_ids: list[str]) -> dic
         return {"status": "BLOCK_IDENTITY", "period": period, "events": []}
 
     events: list[dict[str, Any]] = []
-    pattern = re.compile(
+    fixture_pattern = re.compile(
         r"^(?P<ex>\d{4}/\d{2}/\d{2})\s+(?P<code>\d{4})\s+.*?"
         r"(?P<record>\d{4}/\d{2}/\d{2})\s+Stock Split\s+(?P<ratio>\d+:\d+)\s*$"
     )
+    real_pattern = re.compile(
+        r"^(?:Prime|Standard|Growth|TOKYO PRO Market)?\s*(?P<code>\d{4})\s+.*?"
+        r"(?P<ex>\d{4}\.\d{2}\.\d{2})\s+(?P<record>\d{4}\.\d{2}\.\d{2})\s+"
+        r"(?P<ratio>\d+:\d+)\s+(?:\u682a\u5f0f\u5206\u5272|Stock Split)\s*$"
+    )
     for line in text.splitlines():
-        match = pattern.match(line.strip())
+        stripped = line.strip()
+        match = fixture_pattern.match(stripped) or real_pattern.match(stripped)
         if not match or match.group("code") not in requested:
             continue
-        ex_date = match.group("ex").replace("/", "-")
+        ex_date = match.group("ex").replace("/", "-").replace(".", "-")
         if not ex_date.startswith(period):
             continue
         code = match.group("code")
@@ -184,7 +199,7 @@ def parse_ex_rights_text(text: str, period: str, security_ids: list[str]) -> dic
             "security_code": code,
             "event_type": "STOCK_SPLIT",
             "ex_rights_date": ex_date,
-            "record_date": match.group("record").replace("/", "-"),
+            "record_date": match.group("record").replace("/", "-").replace(".", "-"),
             "split_ratio": match.group("ratio"),
         })
     events.sort(key=lambda event: (event["security_id"], event["ex_rights_date"], event["split_ratio"]))
@@ -198,7 +213,7 @@ def parse_listed_company_changes_text(text: str, period: str, security_ids: list
 
     events: list[dict[str, Any]] = []
     section: str | None = None
-    row_pattern = re.compile(r"^(?P<date>\d{4}/\d{2}/\d{2})\s+(?P<code>\d{4})\b")
+    row_pattern = re.compile(r"^(?:.*?\s)?(?P<date>\d{4}[/.]\d{2}[/.]\d{2})\s+(?P<code>\d{4})\b")
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if line == "Delisting":
@@ -212,20 +227,13 @@ def parse_listed_company_changes_text(text: str, period: str, security_ids: list
         match = row_pattern.match(line)
         if not match or match.group("code") not in requested:
             continue
-        effective_date = match.group("date").replace("/", "-")
+        effective_date = match.group("date").replace("/", "-").replace(".", "-")
         if not effective_date.startswith(period):
             continue
         code = match.group("code")
-        events.append({
-            "security_id": f"TSE:{code}",
-            "security_code": code,
-            "event_type": "DELISTING",
-            "effective_date": effective_date,
-        })
+        events.append({"security_id": f"TSE:{code}", "security_code": code, "event_type": "DELISTING", "effective_date": effective_date})
     events.sort(key=lambda event: (event["security_id"], event["effective_date"]))
     return {"status": "EVENTS_OK", "period": period, "events": events}
-
-
 
 def _row_price_map(snapshot: dict[str, Any]) -> dict[str, Decimal]:
     result: dict[str, Decimal] = {}

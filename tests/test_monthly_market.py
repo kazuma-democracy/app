@@ -466,3 +466,63 @@ def test_source_manifest_period_mismatch_fails_closed() -> None:
         assert "period" in str(exc).lower()
     else:
         raise AssertionError("source manifest period mismatch must fail")
+
+
+
+def test_topix_monthly_roi_parser_accepts_real_pypdf_row_shape() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    real_shape = """ROI of Dividend-Included Stock Price Indices (As of the End of Jul. 2026)
+T\u3000O\u3000P\u3000I\u3000X 7,142.20 0.22 7.59 13.57 39.16 TOPIX
+"""
+    result = module.parse_topix_monthly_roi_text(real_shape, "2026-07")
+    assert result["status"] == "BENCHMARK_ROI_OK"
+    assert result["one_month_percent"] == "0.220000000000"
+    assert result["decimal_return"] == "0.002200000000"
+
+
+
+def test_ex_rights_parser_accepts_real_pypdf_row_shape() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    real_shape = "Prime 2163 ARTNER CO.,LTD. 2026.07.30 2026.07.31 1:2 \u682a\u5f0f\u5206\u5272\n"
+    result = module.parse_ex_rights_text(real_shape, "2026-07", ["TSE:2163"])
+    assert result["events"] == [{
+        "security_id": "TSE:2163",
+        "security_code": "2163",
+        "event_type": "STOCK_SPLIT",
+        "ex_rights_date": "2026-07-30",
+        "record_date": "2026-07-31",
+        "split_ratio": "1:2",
+    }]
+
+
+def test_listed_changes_parser_accepts_real_pypdf_delisting_shape() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    real_shape = "Delisting\nPrime 2026.07.01 3681 V-cube,Inc.\nStandard 2026.07.22 5903 SHINPO CO.,LTD.\n"
+    result = module.parse_listed_company_changes_text(real_shape, "2026-07", ["TSE:3681"])
+    assert result["events"] == [{
+        "security_id": "TSE:3681",
+        "security_code": "3681",
+        "event_type": "DELISTING",
+        "effective_date": "2026-07-01",
+    }]
+
+
+def test_topix_monthly_roi_parser_ignores_topix_rows_outside_roi_section() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    text = """TOPIX 1234.56 9.99 8.88
+ROI of Dividend-Included Stock Price Indices (As of the End of Jul. 2026)
+T\u3000O\u3000P\u3000I\u3000X 7,142.20 0.22 7.59 13.57 39.16 TOPIX
+3-5 Another Section
+TOPIX 9876.54 7.77 6.66
+"""
+    result = module.parse_topix_monthly_roi_text(text, "2026-07")
+    assert result["status"] == "BENCHMARK_ROI_OK"
+    assert result["one_month_percent"] == "0.220000000000"
+
+
+def test_listed_changes_parser_accepts_japanese_sector_prefix() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    text = "Delisting\n\u30d7\u30e9\u30a4\u30e0 2026.07.01 3681 V-cube,Inc.\n"
+    result = module.parse_listed_company_changes_text(text, "2026-07", ["TSE:3681"])
+    assert result["events"][0]["security_id"] == "TSE:3681"
+    assert result["events"][0]["effective_date"] == "2026-07-01"
