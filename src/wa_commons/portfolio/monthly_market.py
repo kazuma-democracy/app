@@ -224,3 +224,141 @@ def parse_listed_company_changes_text(text: str, period: str, security_ids: list
         })
     events.sort(key=lambda event: (event["security_id"], event["effective_date"]))
     return {"status": "EVENTS_OK", "period": period, "events": events}
+
+
+
+def _row_price_map(snapshot: dict[str, Any]) -> dict[str, Decimal]:
+    result: dict[str, Decimal] = {}
+    for row in snapshot.get("rows", []):
+        security_id = row.get("security_id")
+        price = row.get("close_price")
+        if isinstance(security_id, str) and price is not None:
+            result[security_id] = Decimal(str(price))
+    return result
+
+
+def _semantic_decimal(value: Decimal, decimals: int) -> str:
+    quantum = Decimal(1).scaleb(-decimals)
+    return f"{value.quantize(quantum):.{decimals}f}"
+
+
+def build_monthly_return_payload(
+    period: str,
+    held_security_ids: list[str],
+    start_prices: dict[str, Any],
+    end_prices: dict[str, Any],
+    benchmark_roi: dict[str, Any],
+    events: list[dict[str, Any]],
+    evidence_resolutions: dict[str, dict[str, Any]],
+    provenance: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    if benchmark_roi.get("status") != "BENCHMARK_ROI_OK" or "decimal_return" not in benchmark_roi:
+        return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN", "period": period, "rows": []}
+
+    decimals = int(config.get("semantic_decimals", 12))
+    start_map = _row_price_map(start_prices)
+    end_map = _row_price_map(end_prices)
+    events_by_security: dict[str, list[dict[str, Any]]] = {}
+    for event in events:
+        security_id = event.get("security_id")
+        if isinstance(security_id, str):
+            events_by_security.setdefault(security_id, []).append(event)
+
+    rows: list[dict[str, Any]] = []
+    for security_id in sorted(set(held_security_ids)):
+        base = {"security_id": security_id}
+        if not re.fullmatch(r"TSE:\d{4}", security_id):
+            rows.append({**base, "state": "BLOCK_IDENTITY"})
+            continue
+        if security_id not in start_map:
+            rows.append({**base, "state": "BLOCK_START_PRICE"})
+            continue
+        if security_id not in end_map:
+            rows.append({**base, "state": "BLOCK_END_PRICE"})
+            continue
+
+        resolution = evidence_resolutions.get(security_id)
+        if not resolution or resolution.get("identity_state") != "RESOLVED":
+            rows.append({**base, "state": "BLOCK_IDENTITY"})
+            continue
+        dividend_status = resolution.get("dividend_status")
+        if dividend_status not in {"CONFIRMED_NONE", "CONFIRMED_CASH"}:
+            rows.append({**base, "state": "BLOCK_DIVIDEND_EVIDENCE"})
+            continue
+
+        security_events = events_by_security.get(security_id, [])
+        action_resolution = resolution.get("action_resolution")
+        if security_events:
+            if not isinstance(action_resolution, dict) or action_resolution.get("status") != "RESOLVED":
+                rows.append({**base, "state": "BLOCK_CORPORATE_ACTION"})
+                continue
+            if len(security_events) != 1:
+                rows.append({**base, "state": "BLOCK_CORPORATE_ACTION"})
+                continue
+            event = security_events[0]
+            units = Decimal(str(action_resolution.get("end_units_per_start_unit", "0")))
+            cash_consideration = Decimal(str(action_resolution.get("cash_consideration_per_start_unit", "0")))
+            terminal_id = action_resolution.get("terminal_security_id")
+            if units <= 0 or terminal_id != security_id:
+                rows.append({**base, "state": "BLOCK_CORPORATE_ACTION"})
+                continue
+            if event.get("event_type") == "STOCK_SPLIT":
+                ratio = str(event.get("split_ratio", ""))
+                ratio_match = re.fullmatch(r"(\d+):(\d+)", ratio)
+                if not ratio_match:
+                    rows.append({**base, "state": "BLOCK_CORPORATE_ACTION"})
+                    continue
+                expected_units = Decimal(ratio_match.group(2)) / Decimal(ratio_match.group(1))
+                if units != expected_units:
+                    rows.append({**base, "state": "BLOCK_CORPORATE_ACTION"})
+                    continue
+            state = "RETURN_OK_ACTION_EXPLAINED"
+        else:
+            if action_resolution is not None:
+                rows.append({**base, "state": "BLOCK_CORPORATE_ACTION"})
+                continue
+            units = Decimal("1")
+            cash_consideration = Decimal("0")
+            state = "RETURN_OK_NO_ACTION"
+
+        dividend_cash = Decimal(str(resolution.get("dividend_cash_per_start_unit", "0")))
+        if dividend_status == "CONFIRMED_NONE" and dividend_cash != 0:
+            rows.append({**base, "state": "BLOCK_DIVIDEND_EVIDENCE"})
+            continue
+
+        start = start_map[security_id]
+        end = end_map[security_id]
+        if start <= 0:
+            rows.append({**base, "state": "BLOCK_START_PRICE"})
+            continue
+        ending_wealth = end * units + dividend_cash + cash_consideration
+        total_return = ending_wealth / start - Decimal("1")
+        rows.append({
+            **base,
+            "state": state,
+            "start_price": _semantic_decimal(start, decimals),
+            "end_price": _semantic_decimal(end, decimals),
+            "end_units_per_start_unit": _semantic_decimal(units, decimals),
+            "dividend_cash_per_start_unit": _semantic_decimal(dividend_cash, decimals),
+            "cash_consideration_per_start_unit": _semantic_decimal(cash_consideration, decimals),
+            "ending_wealth_per_start_unit": _semantic_decimal(ending_wealth, decimals),
+            "total_wealth_return": _semantic_decimal(total_return, decimals),
+            "evidence_refs": sorted(str(ref) for ref in resolution.get("evidence_refs", [])),
+        })
+
+    blocked = any(str(row.get("state", "")).startswith("BLOCK_") for row in rows)
+    semantic_payload = {
+        "period": period,
+        "benchmark_decimal_return": _semantic_decimal(Decimal(str(benchmark_roi["decimal_return"])), decimals),
+        "rows": rows,
+    }
+    semantic = json.dumps(semantic_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return {
+        "status": "MONTHLY_RETURN_BLOCKED" if blocked else "MONTHLY_RETURN_OK",
+        "period": period,
+        "benchmark_decimal_return": semantic_payload["benchmark_decimal_return"],
+        "rows": rows,
+        "provenance": provenance,
+        "semantic_payload_sha256": hashlib.sha256(semantic.encode("utf-8")).hexdigest(),
+    }

@@ -237,3 +237,148 @@ def test_event_parsers_reject_noncanonical_identity() -> None:
     module = importlib.import_module("wa_commons.portfolio.monthly_market")
     assert module.parse_ex_rights_text(EX_RIGHTS_TEXT, "2026-07", ["ARTNER"])["status"] == "BLOCK_IDENTITY"
     assert module.parse_listed_company_changes_text(LISTED_CHANGES_TEXT, "2026-07", ["V-CUBE"])["status"] == "BLOCK_IDENTITY"
+
+
+
+def _price_snapshot(values: dict[str, str]) -> dict[str, object]:
+    return {
+        "status": "PRICE_SNAPSHOT_OK",
+        "rows": [
+            {"security_id": security_id, "close_price": price}
+            for security_id, price in values.items()
+        ],
+    }
+
+
+def _resolution(
+    *,
+    dividend_status: str = "CONFIRMED_NONE",
+    dividend_cash: str = "0",
+    action_resolution: dict[str, object] | None = None,
+    identity_state: str = "RESOLVED",
+) -> dict[str, object]:
+    value: dict[str, object] = {
+        "identity_state": identity_state,
+        "dividend_status": dividend_status,
+        "dividend_cash_per_start_unit": dividend_cash,
+        "evidence_refs": ["issuer:example"],
+    }
+    if action_resolution is not None:
+        value["action_resolution"] = action_resolution
+    return value
+
+
+def test_monthly_return_payload_no_action_total_wealth_arithmetic() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.build_monthly_return_payload(
+        period="2026-07",
+        held_security_ids=["TSE:1301"],
+        start_prices=_price_snapshot({"TSE:1301": "100"}),
+        end_prices=_price_snapshot({"TSE:1301": "110"}),
+        benchmark_roi={"status": "BENCHMARK_ROI_OK", "decimal_return": "0.0022"},
+        events=[],
+        evidence_resolutions={"TSE:1301": _resolution()},
+        provenance={"sources": ["sha256:abc"]},
+        config={"semantic_decimals": 12},
+    )
+    assert result["status"] == "MONTHLY_RETURN_OK"
+    row = result["rows"][0]
+    assert row["state"] == "RETURN_OK_NO_ACTION"
+    assert row["ending_wealth_per_start_unit"] == "110.000000000000"
+    assert row["total_wealth_return"] == "0.100000000000"
+
+
+def test_monthly_return_payload_adds_cash_dividend_without_reinvestment() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.build_monthly_return_payload(
+        "2026-07", ["TSE:1301"],
+        _price_snapshot({"TSE:1301": "100"}),
+        _price_snapshot({"TSE:1301": "105"}),
+        {"status": "BENCHMARK_ROI_OK", "decimal_return": "0.0022"},
+        [],
+        {"TSE:1301": _resolution(dividend_status="CONFIRMED_CASH", dividend_cash="2")},
+        {}, {"semantic_decimals": 12},
+    )
+    row = result["rows"][0]
+    assert row["ending_wealth_per_start_unit"] == "107.000000000000"
+    assert row["total_wealth_return"] == "0.070000000000"
+
+
+def test_monthly_return_payload_resolves_split_units_explicitly() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    split_event = {
+        "security_id": "TSE:2163", "event_type": "STOCK_SPLIT", "split_ratio": "1:2"
+    }
+    action = {
+        "status": "RESOLVED",
+        "end_units_per_start_unit": "2",
+        "cash_consideration_per_start_unit": "0",
+        "terminal_security_id": "TSE:2163",
+        "evidence_refs": ["jpx:split"],
+    }
+    result = module.build_monthly_return_payload(
+        "2026-07", ["TSE:2163"],
+        _price_snapshot({"TSE:2163": "200"}),
+        _price_snapshot({"TSE:2163": "105"}),
+        {"status": "BENCHMARK_ROI_OK", "decimal_return": "0.0022"},
+        [split_event],
+        {"TSE:2163": _resolution(action_resolution=action)},
+        {}, {"semantic_decimals": 12},
+    )
+    row = result["rows"][0]
+    assert row["state"] == "RETURN_OK_ACTION_EXPLAINED"
+    assert row["ending_wealth_per_start_unit"] == "210.000000000000"
+    assert row["total_wealth_return"] == "0.050000000000"
+
+
+def test_monthly_return_payload_blocks_missing_start_and_end_prices() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    kwargs = dict(
+        period="2026-07", held_security_ids=["TSE:1301"],
+        benchmark_roi={"status": "BENCHMARK_ROI_OK", "decimal_return": "0.0022"},
+        events=[], evidence_resolutions={"TSE:1301": _resolution()}, provenance={}, config={"semantic_decimals": 12},
+    )
+    missing_start = module.build_monthly_return_payload(start_prices=_price_snapshot({}), end_prices=_price_snapshot({"TSE:1301": "110"}), **kwargs)
+    missing_end = module.build_monthly_return_payload(start_prices=_price_snapshot({"TSE:1301": "100"}), end_prices=_price_snapshot({}), **kwargs)
+    assert missing_start["rows"][0]["state"] == "BLOCK_START_PRICE"
+    assert missing_end["rows"][0]["state"] == "BLOCK_END_PRICE"
+
+
+def test_monthly_return_payload_blocks_identity_dividend_and_action_gaps() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    base = dict(
+        period="2026-07", held_security_ids=["TSE:1301"],
+        start_prices=_price_snapshot({"TSE:1301": "100"}), end_prices=_price_snapshot({"TSE:1301": "110"}),
+        benchmark_roi={"status": "BENCHMARK_ROI_OK", "decimal_return": "0.0022"}, provenance={}, config={"semantic_decimals": 12},
+    )
+    identity = module.build_monthly_return_payload(events=[], evidence_resolutions={"TSE:1301": _resolution(identity_state="UNRESOLVED")}, **base)
+    dividend = module.build_monthly_return_payload(events=[], evidence_resolutions={"TSE:1301": _resolution(dividend_status="UNKNOWN")}, **base)
+    action = module.build_monthly_return_payload(events=[{"security_id": "TSE:1301", "event_type": "STOCK_SPLIT", "split_ratio": "1:2"}], evidence_resolutions={"TSE:1301": _resolution()}, **base)
+    assert identity["rows"][0]["state"] == "BLOCK_IDENTITY"
+    assert dividend["rows"][0]["state"] == "BLOCK_DIVIDEND_EVIDENCE"
+    assert action["rows"][0]["state"] == "BLOCK_CORPORATE_ACTION"
+
+
+def test_monthly_return_payload_blocks_missing_benchmark_snapshot() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.build_monthly_return_payload(
+        "2026-07", ["TSE:1301"], _price_snapshot({"TSE:1301": "100"}), _price_snapshot({"TSE:1301": "110"}),
+        {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN"}, [], {"TSE:1301": _resolution()}, {}, {"semantic_decimals": 12},
+    )
+    assert result["status"] == "BLOCK_BENCHMARK_MONTHLY_RETURN"
+    assert result["rows"] == []
+
+
+def test_monthly_return_payload_hash_and_rows_are_order_independent() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    common = dict(
+        period="2026-07",
+        start_prices=_price_snapshot({"TSE:1301": "100", "TSE:2163": "200"}),
+        end_prices=_price_snapshot({"TSE:1301": "110", "TSE:2163": "210"}),
+        benchmark_roi={"status": "BENCHMARK_ROI_OK", "decimal_return": "0.0022"}, events=[],
+        evidence_resolutions={"TSE:1301": _resolution(), "TSE:2163": _resolution()}, provenance={}, config={"semantic_decimals": 12},
+    )
+    left = module.build_monthly_return_payload(held_security_ids=["TSE:1301", "TSE:2163"], **common)
+    right = module.build_monthly_return_payload(held_security_ids=["TSE:2163", "TSE:1301"], **common)
+    assert left["semantic_payload_sha256"] == right["semantic_payload_sha256"]
+    assert left["rows"] == right["rows"]
