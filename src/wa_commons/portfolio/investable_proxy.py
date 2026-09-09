@@ -195,3 +195,61 @@ def map_investable_control_snapshot(
     mapped["manifest"]["allocation_role"] = "INVESTABLE_CONTROL"
     mapped["manifest"]["control_kind"] = "ISHARES_1475_POINT_IN_TIME"
     return mapped
+
+
+from copy import deepcopy
+
+
+def _policy_semantics_projection(config: Mapping[str, Any]) -> dict[str, Any]:
+    contract = dict(config.get("input_contract", {}))
+    return {
+        "artifact_version": config.get("artifact_version"),
+        "market_data_inputs_allowed": config.get("market_data_inputs_allowed"),
+        "profile_id": contract.get("profile_id"),
+        "profile_version": str(contract.get("profile_version")),
+        "policy_sha256": contract.get("policy_sha256"),
+        "unknown_handling": deepcopy(config.get("unknown_handling", {})),
+        "numerical": deepcopy(config.get("numerical", {})),
+        "arms": deepcopy(config.get("arms", [])),
+    }
+
+
+def bind_policy_compiler_inputs(
+    base_config: Mapping[str, Any],
+    mapped_control: Mapping[str, Any],
+    screening: Mapping[str, Any],
+) -> dict[str, Any]:
+    before = _policy_semantics_projection(base_config)
+    bound = deepcopy(dict(base_config))
+    contract = dict(bound.get("input_contract", {}))
+    benchmark_sha = str(mapped_control.get("manifest", {}).get("semantic_mapping_sha256", "")).strip()
+    screening_sha = str(screening.get("tse_screening_sha256", "")).strip()
+    if not _SHA256_RE.fullmatch(benchmark_sha):
+        raise ValueError("mapped control semantic SHA-256 is missing or invalid")
+    if not _SHA256_RE.fullmatch(screening_sha):
+        raise ValueError("screening SHA-256 is missing or invalid")
+    contract["benchmark_semantic_mapping_sha256"] = benchmark_sha.lower()
+    contract["screening_sha256"] = screening_sha.lower()
+    bound["input_contract"] = contract
+    if _policy_semantics_projection(bound) != before:
+        raise ValueError("policy semantics changed during input binding")
+    return bound
+
+
+def directly_changed_security_ids(
+    policy_payload: Mapping[str, Any],
+    arm_id: str,
+) -> list[str]:
+    arms = [arm for arm in policy_payload.get("arms", []) if str(arm.get("arm_id", "")) == arm_id]
+    if len(arms) != 1:
+        raise ValueError(f"policy arm not found or duplicated: {arm_id}")
+    changed: set[str] = set()
+    for row in arms[0].get("target_weights", []):
+        instruction = str(row.get("instruction", ""))
+        multiplier = Decimal(str(row.get("multiplier", "1")))
+        if instruction in {"EXCLUDE", "UNDERWEIGHT"} and multiplier != Decimal("1"):
+            security_id = str(row.get("security_id", "")).strip()
+            if not security_id:
+                raise ValueError("direct policy instruction missing security_id")
+            changed.add(security_id)
+    return sorted(changed)

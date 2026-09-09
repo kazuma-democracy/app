@@ -112,3 +112,69 @@ def test_investable_control_mapping_reuses_exact_code_identity_without_claiming_
     assert mapped["manifest"]["identity_semantic_sha256"] == "1" * 64
     assert all(row["mapping_state"] == "mapped" for row in mapped["rows"])
     assert all(row["benchmark_weight"] == row["control_weight"] for row in mapped["rows"])
+
+
+def test_binding_changes_only_snapshot_input_hashes() -> None:
+    import json
+    from pathlib import Path
+    from wa_commons.portfolio.investable_proxy import bind_policy_compiler_inputs
+
+    base = json.loads(Path("configs/m3-3b2-policy-compiler-v0.1.json").read_text(encoding="utf-8"))
+    mapped_control = {"manifest": {"semantic_mapping_sha256": "a" * 64}}
+    screening = {"tse_screening_sha256": "b" * 64}
+    bound = bind_policy_compiler_inputs(base, mapped_control, screening)
+    assert bound is not base
+    assert bound["arms"] == base["arms"]
+    assert bound["unknown_handling"] == base["unknown_handling"]
+    assert bound["numerical"] == base["numerical"]
+    assert bound["input_contract"]["policy_sha256"] == base["input_contract"]["policy_sha256"]
+    assert bound["input_contract"]["benchmark_semantic_mapping_sha256"] == "a" * 64
+    assert bound["input_contract"]["screening_sha256"] == "b" * 64
+    assert base["input_contract"]["benchmark_semantic_mapping_sha256"] != "a" * 64
+
+
+def test_direct_changed_ids_ignore_normalization_only_rows() -> None:
+    from wa_commons.portfolio.investable_proxy import directly_changed_security_ids
+
+    payload = {
+        "arms": [
+            {
+                "arm_id": "P2",
+                "target_weights": [
+                    {"security_id": "TSE:1001", "instruction": "UNDERWEIGHT", "multiplier": "0.500000000000", "allocation_delta": "-0.010000000000"},
+                    {"security_id": "TSE:1002", "instruction": "NEUTRAL", "multiplier": "1.000000000000", "allocation_delta": "0.010000000000"},
+                ],
+            }
+        ]
+    }
+    assert directly_changed_security_ids(payload, "P2") == ["TSE:1001"]
+
+
+def test_two_month_bindings_keep_frozen_policy_semantics() -> None:
+    import json
+    from pathlib import Path
+    from copy import deepcopy
+    from wa_commons.portfolio.investable_proxy import bind_policy_compiler_inputs
+    from wa_commons.portfolio.policy_compiler import compile_policy_family
+
+    base = json.loads(Path("configs/m3-3b2-policy-compiler-v0.1.json").read_text(encoding="utf-8"))
+    policy_sha = base["input_contract"]["policy_sha256"]
+    rows = [
+        {"security_id": "TSE:1001", "benchmark_weight": "0.600000000000", "mapping_state": "mapped", "canonical_entity_id": "wa:1", "canonical_review_state": "CONFIRMED"},
+        {"security_id": "TSE:1002", "benchmark_weight": "0.400000000000", "mapping_state": "mapped", "canonical_entity_id": "wa:2", "canonical_review_state": "CONFIRMED"},
+    ]
+    views = [
+        {"entity_id": "wa:1", "profile_id": "example:strict-military-avoidance", "profile_version": "1", "policy_sha256": policy_sha, "decision": "NONE", "identity_state": "confirmed", "claim_results": [], "coverage_state_counts": {"observed": 1}},
+        {"entity_id": "wa:2", "profile_id": "example:strict-military-avoidance", "profile_version": "1", "policy_sha256": policy_sha, "decision": "WATCH", "identity_state": "confirmed", "claim_results": [], "coverage_state_counts": {"observed": 1}},
+    ]
+    outputs = []
+    for benchmark_sha, screening_sha in (("a" * 64, "b" * 64), ("c" * 64, "d" * 64)):
+        mapped = {"manifest": {"semantic_mapping_sha256": benchmark_sha}, "rows": deepcopy(rows)}
+        screening = {"tse_screening_sha256": screening_sha, "views": deepcopy(views)}
+        bound = bind_policy_compiler_inputs(base, mapped, screening)
+        outputs.append(compile_policy_family(mapped, screening, bound))
+    assert [item["status"] for item in outputs] == ["FROZEN_POLICY_FAMILY", "FROZEN_POLICY_FAMILY"]
+    assert outputs[0]["manifest"]["profile_id"] == outputs[1]["manifest"]["profile_id"]
+    assert outputs[0]["manifest"]["policy_sha256"] == outputs[1]["manifest"]["policy_sha256"]
+    assert [arm["arm_id"] for arm in outputs[0]["arms"]] == [arm["arm_id"] for arm in outputs[1]["arms"]]
+    assert outputs[0]["manifest"]["config_semantic_sha256"] != outputs[1]["manifest"]["config_semantic_sha256"]
