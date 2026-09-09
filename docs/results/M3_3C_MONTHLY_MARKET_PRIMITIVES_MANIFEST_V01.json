@@ -1,0 +1,87 @@
+{
+  "artifact_version": "m3.3c-monthly-market-primitives-validation-v0.1",
+  "issue": 56,
+  "validation_class": "ENGINEERING_VALIDATION_ONLY",
+  "validation_period": "2026-07",
+  "headline_replay_eligible": false,
+  "policy_or_window_selection_use": "PROHIBITED",
+  "code_commit_under_validation": "653aa38bff16c895cfcd4d30268e3c83ee8aa722",
+  "config": {
+    "path": "configs/m3-3c-monthly-market-v0.1.json",
+    "sha256": "02311e740e3395f9973e15d130d63d170c4fd697438c02d0c19c346be160a827"
+  },
+  "source_contract": {
+    "authority": "docs/results/M3_3C0_FREE_MONTHLY_SOURCE_CONTRACT_V01.md",
+    "cost_model": "ZERO_PURCHASE_ZERO_SUBSCRIPTION",
+    "acquisition_mode": "EXPLICIT_LOCAL_FILES_ONLY",
+    "raw_storage": "LOCAL_ONLY",
+    "raw_source_publication": "PROHIBITED_BY_PROJECT_POLICY",
+    "performance_publication_rights": "NOT_CLEARED"
+  },
+  "sources": {
+    "start_price": {
+      "filename": "st_202606.pdf",
+      "period": "2026-06",
+      "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+      "sha256": "a0dea632ae68a19e8b90aaa5f3a59bfdd21d63c3cdc364a31999b6955420f3c2",
+      "local_timestamp": "2026-09-09T18:03:22.235059+09:00"
+    },
+    "end_price": {
+      "filename": "st_202607.pdf",
+      "period": "2026-07",
+      "locator": "https://www.jpx.co.jp/markets/statistics-equities/price/",
+      "sha256": "5f9685402638c5412956dcee41bf4c18d1fe50ec35d124980f2bb9490c7dbfd9",
+      "local_timestamp": "2026-09-09T03:40:48.951674+09:00"
+    },
+    "benchmark_roi": {
+      "filename": "03_sisu2607.pdf",
+      "period": "2026-07",
+      "locator": "https://www.jpx.co.jp/markets/indices/related/ratio/",
+      "sha256": "d40c7a6c241859264bd58dc3fa01826037026b3b1277eb87942ba0e55f337fa7",
+      "local_timestamp": "2026-09-09T03:49:58.471300+09:00"
+    },
+    "listed_changes": {
+      "filename": "16_idou2607.pdf",
+      "period": "2026-07",
+      "locator": "https://www.jpx.co.jp/markets/statistics-equities/monthly/",
+      "sha256": "00d77641ad5f2ee9c570e89673e2c1f1691432527862bfbf04d9283983b4ebd2",
+      "local_timestamp": "2026-09-09T03:49:58.834172+09:00"
+    },
+    "ex_rights": {
+      "filename": "17_kenri2607.pdf",
+      "period": "2026-07",
+      "locator": "https://www.jpx.co.jp/listing/others/ex-rights/index.html",
+      "sha256": "ec9025d4397d9afaa7559cadf68035ec7b6f0ce686f2ad2a59b342478a86349e",
+      "local_timestamp": "2026-09-09T03:49:59.232978+09:00"
+    }
+  },
+  "timestamp_basis": "LOCAL_FILE_MTIME_OBSERVED_AT_VALIDATION",
+  "checks": {
+    "normal_month_end_price_extraction": "PASS",
+    "corporate_action_duplicate_resolution": "PASS",
+    "benchmark_monthly_roi_extraction": "PASS_NUMERIC_VALUE_LOCAL_ONLY",
+    "split_detector": "PASS",
+    "delisting_detector": "PASS",
+    "exact_jpx_identity_only": "PASS",
+    "missing_data_fail_closed": "PASS",
+    "repeat_input_determinism": "PASS",
+    "reversed_requested_order_determinism": "PASS",
+    "focused_tests": {
+      "status": "PASS",
+      "passed": 34
+    },
+    "full_repository_suite": {
+      "status": "PASS",
+      "passed": 247
+    }
+  },
+  "determinism": {
+    "price_semantic_rows_sha256": "13241de3d6adda1a5677036add6786e730ed48774d2e0e2b62a7083a3bd0d64d"
+  },
+  "publication": {
+    "raw_rows_in_repository": false,
+    "security_level_price_values_published": false,
+    "benchmark_numeric_return_published": false,
+    "candidate_portfolio_return_published": false
+  }
+}
