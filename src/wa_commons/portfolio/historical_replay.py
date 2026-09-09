@@ -240,3 +240,217 @@ def freeze_replay_window(
         "candidate_results": candidate_results,
         "window_semantic_sha256": _canonical_sha256(semantic_manifest),
     }
+
+
+from decimal import Decimal, InvalidOperation
+
+
+def _decimal_text(value: Decimal, decimals: int = 12) -> str:
+    quantum = Decimal(1).scaleb(-decimals)
+    return format(value.quantize(quantum), "f")
+
+
+def _replay_block(status: str, window: Sequence[str], reason: str) -> dict[str, Any]:
+    return {
+        "status": status,
+        "window": list(window),
+        "blockers": [reason],
+    }
+
+
+def _policy_semantics_signature(payload: Mapping[str, Any]) -> tuple[Any, ...] | None:
+    if payload.get("status") != "FROZEN_POLICY_FAMILY":
+        return None
+    manifest = payload.get("manifest")
+    if not isinstance(manifest, Mapping):
+        return None
+    arms = payload.get("arms")
+    if not isinstance(arms, list):
+        return None
+    arm_signature = tuple(
+        (
+            str(arm.get("arm_id", "")),
+            str(arm.get("allocation_policy_id", "")),
+            str(arm.get("allocation_policy_version", "")),
+        )
+        for arm in sorted(arms, key=lambda item: str(item.get("arm_id", "")))
+    )
+    return (
+        str(manifest.get("profile_id", "")),
+        str(manifest.get("profile_version", "")),
+        str(manifest.get("policy_sha256", "")),
+        arm_signature,
+    )
+
+
+def _market_return_index(payload: Mapping[str, Any]) -> dict[str, Decimal] | None:
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return None
+    index: dict[str, Decimal] = {}
+    for row in rows:
+        security_id = str(row.get("security_id", ""))
+        state = str(row.get("state", ""))
+        if not security_id or not state.startswith("RETURN_OK_"):
+            return None
+        if security_id in index:
+            return None
+        try:
+            index[security_id] = Decimal(str(row["total_wealth_return"]))
+        except (KeyError, InvalidOperation):
+            return None
+    return index
+
+
+def _arm_month_return(
+    arm: Mapping[str, Any],
+    market_returns: Mapping[str, Decimal],
+) -> Decimal | None:
+    rows = arm.get("target_weights")
+    if not isinstance(rows, list):
+        return None
+    total_weight = Decimal("0")
+    result = Decimal("0")
+    seen: set[str] = set()
+    for row in sorted(rows, key=lambda item: str(item.get("security_id", ""))):
+        security_id = str(row.get("security_id", ""))
+        if not security_id or security_id in seen or security_id not in market_returns:
+            return None
+        try:
+            weight = Decimal(str(row["target_weight"]))
+        except (KeyError, InvalidOperation):
+            return None
+        if weight < 0:
+            return None
+        seen.add(security_id)
+        total_weight += weight
+        result += weight * market_returns[security_id]
+    if total_weight != Decimal("1"):
+        return None
+    return result
+
+
+def run_frozen_replay(
+    window_manifest: Mapping[str, Any],
+    monthly_policy_payloads: Mapping[str, Mapping[str, Any]],
+    monthly_market_payloads: Mapping[str, Mapping[str, Any]],
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    if window_manifest.get("status") != "HISTORICAL_REPLAY_WINDOW_FROZEN":
+        return _replay_block("BLOCK_REPRODUCIBILITY", [], "WINDOW_NOT_FROZEN")
+
+    window = list(window_manifest.get("window", []))
+    if len(window) != 3:
+        return _replay_block("BLOCK_REPRODUCIBILITY", window, "INVALID_WINDOW_LENGTH")
+
+    expected_signature: tuple[Any, ...] | None = None
+    cumulative_by_arm: dict[str, Decimal] = {}
+    benchmark_wealth = Decimal("1")
+    month_results: list[dict[str, Any]] = []
+
+    for period in window:
+        policy_payload = monthly_policy_payloads.get(period)
+        if not isinstance(policy_payload, Mapping):
+            return _replay_block(
+                "BLOCK_REPRODUCIBILITY", window, f"MISSING_POLICY_MONTH:{period}"
+            )
+        signature = _policy_semantics_signature(policy_payload)
+        if signature is None:
+            return _replay_block(
+                "BLOCK_REPRODUCIBILITY", window, f"INVALID_POLICY_MONTH:{period}"
+            )
+        if expected_signature is None:
+            expected_signature = signature
+        elif signature != expected_signature:
+            return _replay_block(
+                "BLOCK_REPRODUCIBILITY", window, f"POLICY_SEMANTICS_DRIFT:{period}"
+            )
+
+        market_payload = monthly_market_payloads.get(period)
+        if not isinstance(market_payload, Mapping):
+            return _replay_block(
+                "BLOCK_MARKET_DATA", window, f"MISSING_MARKET_MONTH:{period}"
+            )
+        rows = market_payload.get("rows", [])
+        if any(
+            str(row.get("state", "")) == "BLOCK_CORPORATE_ACTION"
+            for row in rows
+            if isinstance(row, Mapping)
+        ):
+            return _replay_block(
+                "BLOCK_CORPORATE_ACTION", window, f"CORPORATE_ACTION_BLOCK:{period}"
+            )
+        if market_payload.get("status") != "MONTHLY_RETURN_OK":
+            return _replay_block(
+                "BLOCK_MARKET_DATA", window, f"MONTHLY_RETURN_BLOCKED:{period}"
+            )
+        market_returns = _market_return_index(market_payload)
+        if market_returns is None:
+            return _replay_block(
+                "BLOCK_MARKET_DATA", window, f"INVALID_MARKET_ROWS:{period}"
+            )
+        try:
+            benchmark_return = Decimal(str(market_payload["benchmark_decimal_return"]))
+        except (KeyError, InvalidOperation):
+            return _replay_block(
+                "BLOCK_MARKET_DATA", window, f"INVALID_BENCHMARK_RETURN:{period}"
+            )
+        benchmark_wealth *= Decimal("1") + benchmark_return
+
+        transmission: list[dict[str, Any]] = []
+        financial_arms: list[dict[str, Any]] = []
+        for arm in sorted(
+            policy_payload["arms"],
+            key=lambda item: str(item.get("arm_id", "")),
+        ):
+            arm_id = str(arm.get("arm_id", ""))
+            month_return = _arm_month_return(arm, market_returns)
+            if month_return is None:
+                return _replay_block(
+                    "BLOCK_MARKET_DATA", window, f"TARGET_MARKET_MISMATCH:{period}:{arm_id}"
+                )
+            cumulative_by_arm.setdefault(arm_id, Decimal("1"))
+            cumulative_by_arm[arm_id] *= Decimal("1") + month_return
+            transmission.append({
+                "arm_id": arm_id,
+                "semantic_target_sha256": arm.get("semantic_target_sha256"),
+                "metrics": dict(arm.get("metrics", {})),
+            })
+            financial_arms.append({
+                "arm_id": arm_id,
+                "portfolio_return": _decimal_text(month_return),
+            })
+
+        month_results.append({
+            "period": period,
+            "policy_transmission": transmission,
+            "financial": {
+                "benchmark_return": _decimal_text(benchmark_return),
+                "arms": financial_arms,
+            },
+        })
+
+    arm_summaries = [
+        {
+            "arm_id": arm_id,
+            "cumulative_wealth": _decimal_text(cumulative_by_arm[arm_id]),
+            "cumulative_return": _decimal_text(cumulative_by_arm[arm_id] - Decimal("1")),
+        }
+        for arm_id in sorted(cumulative_by_arm)
+    ]
+    benchmark_summary = {
+        "cumulative_wealth": _decimal_text(benchmark_wealth),
+        "cumulative_return": _decimal_text(benchmark_wealth - Decimal("1")),
+    }
+    semantic_payload = {
+        "status": "HISTORICAL_REPLAY_OK",
+        "window": window,
+        "window_semantic_sha256": window_manifest.get("window_semantic_sha256"),
+        "months": month_results,
+        "arms": arm_summaries,
+        "benchmark": benchmark_summary,
+    }
+    return {
+        **semantic_payload,
+        "semantic_payload_sha256": _canonical_sha256(semantic_payload),
+    }
