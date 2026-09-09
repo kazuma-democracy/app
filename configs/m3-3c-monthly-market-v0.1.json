@@ -1,0 +1,47 @@
+{
+  "artifact_version": "m3.3c-monthly-market-v0.1",
+  "issue": 56,
+  "timezone": "Asia/Tokyo",
+  "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+  "return_basis": "MONTHLY_GROSS_TOTAL_WEALTH_RETURN_JPY",
+  "cost_model": "ZERO_PURCHASE_ZERO_SUBSCRIPTION",
+  "acquisition_mode": "EXPLICIT_LOCAL_FILES_ONLY",
+  "raw_storage": "LOCAL_ONLY",
+  "raw_source_publication": "PROHIBITED_BY_PROJECT_POLICY",
+  "whole_market_daily_store": false,
+  "automated_high_frequency_jpx_scraping": false,
+  "identity_mapping": "EXACT_JPX_SECURITY_CODE_ONLY",
+  "name_only_relink": "PROHIBITED",
+  "performance_publication_rights_default": "NOT_CLEARED",
+  "pdf_backend": {
+    "package": "pypdf",
+    "version": "6.18.0"
+  },
+  "semantic_decimals": 12,
+  "missing_value_treatment": "BLOCK",
+  "synthetic_reinvestment": false,
+  "infer_action_from_price_jump": false,
+  "engineering_validation_months_not_headline": ["2026-07"],
+  "held_security_terminal_states": [
+    "RETURN_OK_NO_ACTION",
+    "RETURN_OK_ACTION_EXPLAINED",
+    "BLOCK_START_PRICE",
+    "BLOCK_END_PRICE",
+    "BLOCK_DIVIDEND_EVIDENCE",
+    "BLOCK_CORPORATE_ACTION",
+    "BLOCK_IDENTITY"
+  ],
+  "snapshot_terminal_states": [
+    "BLOCK_SOURCE_UNAVAILABLE",
+    "BLOCK_BENCHMARK_MONTHLY_RETURN",
+    "BLOCK_RIGHTS_PUBLICATION",
+    "BLOCK_EVIDENCE_CUTOFF",
+    "BLOCK_REPRODUCIBILITY"
+  ],
+  "sources": {
+    "stock_price_table": "TSE_MONTHLY_STOCK_PRICE_TABLE",
+    "benchmark_roi": "JPX_DIVIDEND_INCLUDED_INDEX_MONTHLY_ROI",
+    "listed_changes": "TSE_MONTHLY_STATISTICS_REPORT",
+    "ex_rights": "JPX_EX_RIGHTS_INFORMATION"
+  }
+}
