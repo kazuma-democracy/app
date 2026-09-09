@@ -66,7 +66,7 @@
       "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE"
     }
   ],
-  "code_commit": "20e8ce1568a6f05567c63bc37ed0d0a531c51bf6",
+  "code_commit": "df792e9b97e86d3a651a33ba0f0c45e804c0c572",
   "selection_input_semantics": "METADATA_ONLY_NO_RETURNS",
   "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE",
   "window": []

@@ -3,7 +3,7 @@
 Issue: #85
 Status: `BLOCK_HISTORICAL_REPLAY_COVERAGE`
 Selection mode: `METADATA_ONLY_NO_RETURNS`
-Code under validation: `20e8ce1568a6f05567c63bc37ed0d0a531c51bf6`
+Code under validation: `df792e9b97e86d3a651a33ba0f0c45e804c0c572`
 
 ## Result
 
@@ -47,7 +47,7 @@ An underlying contract or event having occurred earlier is not enough if WA Comm
 
 The freeze engine and metadata-only gate are implemented. A real three-month replay becomes executable only when three consecutive cutoff-valid benchmark/screening snapshots can be reconstructed under the adopted source/rights contract.
 
-The separate frozen-window replay engine may still be implemented and tested with synthetic fixtures without weakening this real-data BLOCK result.
+The separate frozen-window replay engine and execution CLI are implemented and tested with synthetic fixtures without weakening this real-data BLOCK result.
 
 ## Reproduction
 
