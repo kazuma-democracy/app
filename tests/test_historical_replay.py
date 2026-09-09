@@ -116,3 +116,64 @@ def test_performance_bearing_candidate_keys_are_rejected() -> None:
         candidate[key] = value
         result = module.qualify_candidate_month(candidate, _config())
         assert result["status"] == "BLOCK_REPRODUCIBILITY", key
+
+
+_PERIOD_META = {
+    "2026-02": ("2026-01-30T15:30:00+09:00", "2025-12-30", "2026-01-30T16:20:00+09:00"),
+    "2026-03": ("2026-02-27T15:30:00+09:00", "2025-12-30", "2026-01-30T16:20:00+09:00"),
+    "2026-04": ("2026-03-31T15:30:00+09:00", "2026-01-30", "2026-02-27T16:20:00+09:00"),
+    "2026-05": ("2026-04-30T15:30:00+09:00", "2026-02-27", "2026-03-31T16:20:00+09:00"),
+    "2026-06": ("2026-05-29T15:30:00+09:00", "2026-03-31", "2026-04-30T16:20:00+09:00"),
+    "2026-07": ("2026-06-30T15:30:00+09:00", "2026-04-30", "2026-05-29T16:20:00+09:00"),
+    "2026-08": ("2026-07-31T15:30:00+09:00", "2026-05-29", "2026-06-30T16:20:00+09:00"),
+}
+
+
+def _candidate_for_period(period: str) -> dict:
+    cutoff, effective_date, available_at = _PERIOD_META[period]
+    candidate = _candidate(period)
+    candidate["decision_cutoff"] = cutoff
+    candidate["benchmark_snapshot"]["effective_date"] = effective_date
+    candidate["benchmark_snapshot"]["available_at"] = available_at
+    candidate["benchmark_snapshot"]["semantic_mapping_sha256"] = period.replace("-", "") + "a" * 58
+    candidate["screening_snapshot"]["decision_cutoff"] = cutoff
+    candidate["screening_snapshot"]["screening_sha256"] = period.replace("-", "") + "d" * 58
+    return candidate
+
+
+def test_freeze_selects_most_recent_qualified_consecutive_triple() -> None:
+    module = importlib.import_module("wa_commons.portfolio.historical_replay")
+    candidates = [_candidate_for_period(p) for p in ("2026-04", "2026-05", "2026-06", "2026-07", "2026-08")]
+    result = module.freeze_replay_window(candidates, _config())
+    assert result["status"] == "HISTORICAL_REPLAY_WINDOW_FROZEN"
+    assert result["window"] == ["2026-04", "2026-05", "2026-06"]
+    assert len(result["window_semantic_sha256"]) == 64
+
+
+def test_freeze_is_input_order_independent() -> None:
+    module = importlib.import_module("wa_commons.portfolio.historical_replay")
+    candidates = [_candidate_for_period(p) for p in ("2026-04", "2026-05", "2026-06", "2026-07", "2026-08")]
+    left = module.freeze_replay_window(candidates, _config())
+    right = module.freeze_replay_window(list(reversed(candidates)), _config())
+    assert left["window"] == right["window"]
+    assert left["window_semantic_sha256"] == right["window_semantic_sha256"]
+
+
+def test_nonconsecutive_qualified_months_do_not_freeze() -> None:
+    module = importlib.import_module("wa_commons.portfolio.historical_replay")
+    candidates = [_candidate_for_period(p) for p in ("2026-02", "2026-04", "2026-06")]
+    result = module.freeze_replay_window(candidates, _config())
+    assert result["status"] == "BLOCK_HISTORICAL_REPLAY_COVERAGE"
+    assert result["window"] == []
+    assert len(result["candidate_results"]) == 3
+
+
+def test_newer_metadata_block_does_not_hide_older_valid_triple() -> None:
+    module = importlib.import_module("wa_commons.portfolio.historical_replay")
+    candidates = [_candidate_for_period(p) for p in ("2026-03", "2026-04", "2026-05", "2026-06", "2026-08")]
+    candidates[-1]["benchmark_snapshot"] = None
+    result = module.freeze_replay_window(candidates, _config())
+    assert result["status"] == "HISTORICAL_REPLAY_WINDOW_FROZEN"
+    assert result["window"] == ["2026-04", "2026-05", "2026-06"]
+    august = next(item for item in result["candidate_results"] if item["evaluation_period"] == "2026-08")
+    assert august["status"] == "BLOCK_HISTORICAL_REPLAY_COVERAGE"
