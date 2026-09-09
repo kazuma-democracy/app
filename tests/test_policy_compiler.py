@@ -281,3 +281,14 @@ def test_public_artifact_pins_input_provenance(tmp_path) -> None:
     assert public_payload["screening_sha256"] == SCREENING_SHA
     assert public_payload["policy_sha256"] == POLICY_SHA
     assert len(public_payload["config_semantic_sha256"]) == 64
+
+
+def test_screening_bridge_unresolved_is_weight_neutral_when_benchmark_identity_confirmed() -> None:
+    module = importlib.import_module("wa_commons.portfolio.policy_compiler")
+    benchmark, screening, config = minimal_inputs()
+    screening["views"][0]["identity_state"] = "unresolved"
+    screening["views"][0]["coverage_state_counts"]["unresolved_identity"] = 1
+    result = module.compile_policy_family(benchmark, screening, config)
+    assert result["status"] == "FROZEN_POLICY_FAMILY"
+    p2 = next(arm for arm in result["arms"] if arm["arm_id"] == "P2")
+    assert p2["metrics"]["insufficient_coverage_benchmark_weight"] == "1.000000000000"

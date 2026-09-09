@@ -80,7 +80,8 @@ def _screening_index(
         entity_id = str(view.get("entity_id", "")).strip()
         if not entity_id or entity_id in index:
             return "BLOCK_IDENTITY", {}
-        if str(view.get("identity_state", "")).lower() != "confirmed":
+        identity_state = str(view.get("identity_state", "")).lower()
+        if identity_state not in {"confirmed", "unresolved"}:
             return "BLOCK_IDENTITY", {}
         if view.get("decision") not in EXPECTED_DECISIONS:
             return "BLOCK_POLICY_INSTRUCTION", {}
