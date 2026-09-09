@@ -1,6 +1,6 @@
 # Historical Replay v0.2 — Investable TOPIX Proxy Control
 
-Status: **APPROVED IN CHAT — pending written-spec review**
+Status: **APPROVED — implementation planning authorized in chat 2026-09-10**
 
 Date: 2026-09-09
 Issue: #85
@@ -99,7 +99,8 @@ The following months are therefore engineering-only for the first headline resul
 - 2026-04;
 - 2026-05;
 - 2026-06;
-- 2026-07.
+- 2026-07;
+- 2026-08, because its 2026-07-31 starting holdings market values/weights were inspected during proxy-fidelity research.
 
 During the feasibility spike, 1475 and/or TOPIX Total Return values for those months were inspected. They may be used for parser, proxy-fidelity and regression validation, but not promoted into the first headline replay.
 
