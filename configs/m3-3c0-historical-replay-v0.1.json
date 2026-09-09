@@ -1,0 +1,26 @@
+{
+  "artifact_version": "m3.3c0-historical-replay-v0.1",
+  "issue": 85,
+  "window_length_months": 3,
+  "engineering_validation_periods": ["2026-07"],
+  "future_holdout_periods": ["2026-10"],
+  "required_market_source_roles": [
+    "start_price",
+    "end_price",
+    "benchmark",
+    "action_detector"
+  ],
+  "policy_contract": {
+    "artifact_version": "m3.3b2-policy-compiler-v0.1",
+    "profile_id": "example:strict-military-avoidance",
+    "profile_version": "1",
+    "policy_sha256": "7b2558875af5f23ae32061c218a15de94dce479badf239f6b412bd77ba51a72c",
+    "policy_config_semantic_sha256": "bf5f68e8c528b77305b6a2b2e907abaf816546434d0f78b4161cc05b117cf636",
+    "arms": ["P0", "P1", "P2"]
+  },
+  "selection_rule": "MOST_RECENT_THREE_CONSECUTIVE_METADATA_QUALIFIED_MONTHS",
+  "market_values_allowed_during_selection": false,
+  "current_constituent_back_projection": false,
+  "paper_only": true,
+  "real_money_authority": false
+}

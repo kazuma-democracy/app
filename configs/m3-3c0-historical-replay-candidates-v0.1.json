@@ -1,0 +1,78 @@
+{
+  "artifact_version": "m3.3c0-historical-replay-candidates-v0.1",
+  "issue": 85,
+  "inventory_as_of": "2026-09-09",
+  "selection_inputs": "METADATA_ONLY_NO_RETURNS",
+  "completed_candidate_periods": [
+    "2026-01", "2026-02", "2026-03", "2026-04",
+    "2026-05", "2026-06", "2026-07", "2026-08"
+  ],
+  "known_benchmark_snapshots": [
+    {
+      "effective_date": "2026-07-31",
+      "available_at": "2026-08-31T16:20:00+09:00",
+      "semantic_mapping_sha256": "1cc4b239507b8285e0b5d9fd348fc31e9ccc26a71bc0bc217baa1c3a6fa24409",
+      "source_sha256": "e8bb15ddbe6f65c11363fe1f816feabc125b8587c520f358dcf191a4e7db0ae7",
+      "source": "JPX TOPIX Component Weight List",
+      "usable_for_completed_candidates": false
+    }
+  ],
+  "candidates": [
+    {
+      "evaluation_period": "2026-01",
+      "decision_cutoff": "2025-12-30T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    },
+    {
+      "evaluation_period": "2026-02",
+      "decision_cutoff": "2026-01-30T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    },
+    {
+      "evaluation_period": "2026-03",
+      "decision_cutoff": "2026-02-27T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    },
+    {
+      "evaluation_period": "2026-04",
+      "decision_cutoff": "2026-03-31T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    },
+    {
+      "evaluation_period": "2026-05",
+      "decision_cutoff": "2026-04-30T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    },
+    {
+      "evaluation_period": "2026-06",
+      "decision_cutoff": "2026-05-29T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    },
+    {
+      "evaluation_period": "2026-07",
+      "decision_cutoff": "2026-06-30T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    },
+    {
+      "evaluation_period": "2026-08",
+      "decision_cutoff": "2026-07-31T15:30:00+09:00",
+      "benchmark_snapshot": null,
+      "screening_snapshot": null,
+      "market_source_metadata": null
+    }
+  ]
+}
