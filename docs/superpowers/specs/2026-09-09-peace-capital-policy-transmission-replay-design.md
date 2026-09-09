@@ -2,7 +2,7 @@
 
 Status: **APPROVED — superseding M3 architecture**
 
-Approved by user: 2026-09-09  
+Approved by user: 2026-09-09
 Date: 2026-09-09
 
 ## 1. Why this design changes now
