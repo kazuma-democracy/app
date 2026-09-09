@@ -28,6 +28,22 @@ JPX documents that the public TOPIX component-weight list is replaced/updated af
 
 No paid or newly licensed historical substitute was adopted inside #85. The existing zero-cost source contract remains authoritative.
 
+## Free-route reconstruction audit
+
+A follow-up audit tested whether the blocker could be removed using only free JPX primary sources, without changing the preregistered benchmark or using observed returns.
+
+JPX publishes an official FFW list as of `2026-03-31` at `https://www.jpx.co.jp/markets/indices/revisions-indices/nlsgeu000005mj3q-att/ffw20260331.csv`. The local research copy had SHA-256 `41071d177a41fe6c9cecd448a528fd0815da7d4b0f4cbe22f078acee2b2dd6a8`.
+
+The official 2026-03 detailed Monthly Stock Quotations file was also inspected. It provides monthly price fields, but not TOPIX membership, FFW, CMV, or index-share counts.
+
+JPX's official TOPIX calculation documentation states that index shares are based on index-listed shares multiplied by FFW (and applicable adjustment/cap factors), and that index-listed shares can temporarily differ from ordinary listed shares because corporate actions are reflected at different timings. Therefore ordinary issued/listed-share statistics cannot be silently substituted for historical index-share counts.
+
+JPX's Reference Data service identifies `指数マスタ` and `指数用株式数等変更` as the provider datasets for constituent master and index-share changes. That route is not adopted by the current zero-cost contract.
+
+Internet Archive CDX checks also returned no 2026 captures for the current public `topixweight_j.csv` URL or the older JPX attachment URL checked.
+
+Conclusion: the free FFW and monthly-price materials are useful evidence but do not establish exact point-in-time TOPIX weights. Reconstructing weights from them would introduce an inferred benchmark and remains prohibited.
+
 ## Why current constituents are not substituted
 
 Using the current TOPIX constituent list for an earlier replay month would create survivorship and look-ahead leakage. The approved design explicitly prohibits that shortcut.
