@@ -1,91 +1,129 @@
 {
-  "manifest": {
-    "pack_version": "wa-public-evidence-pack-v0.1",
-    "generated_at": "2026-09-11T00:00:00Z",
-    "release_state": "READY_FOR_CAPABILITY_TEST",
-    "pack_semantic_sha256": "synthetic"
-  },
-  "topics": {
-    "military_defence": {
-      "state": "AVAILABLE",
-      "reason": "PUBLIC_FIELDS_ALLOWED",
-      "source_id": "jp-mod-procurement"
-    },
-    "ohchr_settlement_related": {
-      "state": "NOT_INTEGRATED",
-      "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
-      "source_id": "ohchr-settlements-business"
-    }
-  },
   "companies": [
     {
-      "entity_id": "jp:corporate-number:1111111111111",
-      "corporate_number": "1111111111111",
+      "aliases": [],
       "canonical_name": "合成株式会社",
-      "security_code": "1001",
+      "corporate_number": "1111111111111",
       "edinet_code": "E00001",
-      "identity_state": "CONFIRMED",
-      "aliases": ["合成"],
-      "topics": {
-        "military_defence": {
-          "state": "OBSERVED",
-          "reason": "COVERAGE_MATRIX",
-          "source_id": "jp-mod-procurement"
-        },
-        "ohchr_settlement_related": {
-          "state": "NOT_INTEGRATED",
-          "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
-          "source_id": "ohchr-settlements-business"
-        }
-      },
-      "policy_views": [
-        {
-          "profile_id": "public:strict-military-specific:v1",
-          "profile_version": "1",
-          "policy_sha256": "synthetic",
-          "decision": "EXCLUDE",
-          "claim_results": [{"claim_id": "claim-mod-1", "decision": "EXCLUDE"}],
-          "reasoning": "Synthetic fixture only."
-        }
-      ],
+      "entity_id": "jp:corporate-number:1111111111111",
       "evidence": [
         {
+          "adjudication": {
+            "confidence": 0.99,
+            "status": "CONFIRMED"
+          },
+          "challenge_url": "https://github.com/kazuma-democracy/wa-commons/issues/new",
           "claim_id": "claim-mod-1",
+          "entity_resolution_state": "confirmed",
           "narrow_claim": {
             "category": "military_contract",
             "predicate": "contract_subject_classification",
-            "value": {"classification": "military_specific"}
+            "value": {
+              "classification": "military_specific"
+            }
           },
-          "adjudication": {"status": "CONFIRMED", "confidence": 0.99},
-          "entity_resolution_state": "confirmed",
           "sources": [
             {
-              "source_id": "jp-mod-procurement",
-              "publisher": "Japan Ministry of Defense",
-              "url": "https://example.invalid/mod",
-              "locator": "synthetic-record",
               "evidence_date": "2026-04-01",
-              "retrieved_at": "2026-09-01T00:00:00Z"
+              "locator": "record-1",
+              "publisher": "Japan Ministry of Defense",
+              "retrieved_at": "2026-09-01T00:00:00Z",
+              "source_id": "jp-mod-procurement",
+              "url": "https://example.test/mod/1"
+            }
+          ]
+        }
+      ],
+      "identity_state": "CONFIRMED",
+      "policy_views": [
+        {
+          "claim_results": [
+            {
+              "claim_id": "claim-mod-1",
+              "decision": "EXCLUDE"
             }
           ],
-          "challenge_url": "https://github.com/kazuma-democracy/wa-commons/issues/new"
+          "decision": "EXCLUDE",
+          "policy_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "profile_id": "public:strict-military-specific:v1",
+          "profile_version": "1",
+          "reasoning": "Public decision EXCLUDE is the highest-priority rights-cleared claim result; decisive claim(s): claim-mod-1."
         }
-      ]
+      ],
+      "security_code": "1001",
+      "topics": {
+        "military_defence": {
+          "reason": "COVERAGE_MATRIX",
+          "source_id": "jp-mod-procurement",
+          "state": "OBSERVED"
+        },
+        "ohchr_settlement_related": {
+          "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
+          "source_id": "ohchr-settlements-business",
+          "state": "NOT_INTEGRATED"
+        }
+      }
     },
     {
-      "entity_id": "jp:corporate-number:2222222222222",
-      "corporate_number": "2222222222222",
-      "canonical_name": "合成電機株式会社",
-      "security_code": "2002",
-      "edinet_code": "E00002",
-      "identity_state": "CONFIRMED",
       "aliases": [],
+      "canonical_name": "合成電機株式会社",
+      "corporate_number": "2222222222222",
+      "edinet_code": "E00002",
+      "entity_id": "jp:corporate-number:2222222222222",
+      "evidence": [],
+      "identity_state": "CONFIRMED",
+      "policy_views": [
+        {
+          "claim_results": [],
+          "decision": "NONE",
+          "policy_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "profile_id": "public:strict-military-specific:v1",
+          "profile_version": "1",
+          "reasoning": "No rights-cleared public claim contributes to this profile; NONE is not PASS, clean, or safe."
+        }
+      ],
+      "security_code": "2002",
       "topics": {
-        "military_defence": {"state": "NO_MATCH", "reason": "COVERAGE_MATRIX", "source_id": "jp-mod-procurement"},
-        "ohchr_settlement_related": {"state": "NOT_INTEGRATED", "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED", "source_id": "ohchr-settlements-business"}
-      },
-      "policy_views": [],
-      "evidence": []
+        "military_defence": {
+          "reason": "COVERAGE_MATRIX",
+          "source_id": "jp-mod-procurement",
+          "state": "NO_MATCH"
+        },
+        "ohchr_settlement_related": {
+          "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
+          "source_id": "ohchr-settlements-business",
+          "state": "NOT_INTEGRATED"
+        }
+      }
     }
-  ]
+  ],
+  "manifest": {
+    "code_commit": "abc123",
+    "company_count": 2,
+    "coverage_semantic_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "evidence_count": 1,
+    "evidence_semantic_sha256": "c34415a15b6a599ec67bcd4f8189f72fdb61c0cc5781b9475457ae0cc542cbe7",
+    "generated_at": "2026-09-11T00:00:00Z",
+    "identity_semantic_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "pack_semantic_sha256": "71d47765f5c2c843653046555ebc2c0e2f7d87ad0f68dfc00bfc1c7af6dda1e1",
+    "pack_version": "wa-public-evidence-pack-v0.1",
+    "profile_hashes": {
+      "public:strict-military-specific:v1": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "release_state": "READY_FOR_CAPABILITY_TEST",
+    "screening_semantic_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "source_rights_sha256": "b23a7acce5f69c01da9b83906cd98d28879afb3222647cf8b97f5365b1b597ec"
+  },
+  "topics": {
+    "military_defence": {
+      "reason": "PUBLIC_FIELDS_ALLOWED",
+      "source_id": "jp-mod-procurement",
+      "state": "AVAILABLE"
+    },
+    "ohchr_settlement_related": {
+      "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
+      "source_id": "ohchr-settlements-business",
+      "state": "NOT_INTEGRATED"
+    }
+  }
 }
