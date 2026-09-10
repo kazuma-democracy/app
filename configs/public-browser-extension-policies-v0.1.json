@@ -1,0 +1,83 @@
+[
+  {
+    "schema_version": "0.1",
+    "profile_id": "public:information-only:v1",
+    "profile_version": "1",
+    "title": "Information only",
+    "description": "Surface evidence without exclusion rules. NONE is not a safety or cleanliness assertion.",
+    "origin": {"kind": "example", "author": "WA Commons contributors", "official_status": "not_official", "forked_from": null},
+    "default_decision": "NONE",
+    "uncertainty": {"unknown": "WATCH", "disputed": "WATCH", "expired": "WATCH"},
+    "exclusions": [],
+    "preferences": []
+  },
+  {
+    "schema_version": "0.1",
+    "profile_id": "public:strict-military-specific:v1",
+    "profile_version": "1",
+    "title": "Strict military-specific avoidance",
+    "description": "Exclude only confirmed military-specific contract-subject claims; ambiguity remains review material.",
+    "origin": {"kind": "example", "author": "WA Commons contributors", "official_status": "not_official", "forked_from": {"profile_id": "example:strict-military-avoidance", "profile_version": "1"}},
+    "default_decision": "NONE",
+    "uncertainty": {"unknown": "WATCH", "disputed": "WATCH", "expired": "WATCH"},
+    "exclusions": [
+      {
+        "rule_id": "exclude-confirmed-military-specific",
+        "description": "Exclude confirmed claims that the contract subject itself is military-specific.",
+        "match": {"categories": ["military_contract"], "predicates": ["contract_subject_classification"]},
+        "condition": {"field": "claim.value.classification", "operator": "eq", "value": "military_specific"},
+        "min_confidence": 0.8,
+        "decision": "EXCLUDE"
+      }
+    ],
+    "preferences": []
+  },
+  {
+    "schema_version": "0.1",
+    "profile_id": "public:ohchr-settlement-avoidance:v1",
+    "profile_version": "1",
+    "title": "OHCHR settlement-related avoidance",
+    "description": "Exclude only confirmed claims using the exact OHCHR settlement-related activity predicate when that source is rights-cleared and integrated.",
+    "origin": {"kind": "example", "author": "WA Commons contributors", "official_status": "not_official", "forked_from": null},
+    "default_decision": "NONE",
+    "uncertainty": {"unknown": "WATCH", "disputed": "WATCH", "expired": "WATCH"},
+    "exclusions": [
+      {
+        "rule_id": "exclude-confirmed-ohchr-settlement-related",
+        "description": "Exclude only confirmed OHCHR settlement-related activity claims.",
+        "match": {"categories": ["human_rights"], "predicates": ["ohchr_settlement_related_activity"]},
+        "min_confidence": 0.8,
+        "decision": "EXCLUDE"
+      }
+    ],
+    "preferences": []
+  },
+  {
+    "schema_version": "0.1",
+    "profile_id": "public:military-and-settlement:v1",
+    "profile_version": "1",
+    "title": "Military-specific and OHCHR settlement-related avoidance",
+    "description": "Union of the exact military-specific and OHCHR settlement-related exclusion rules; no generic Israel-related rule exists.",
+    "origin": {"kind": "example", "author": "WA Commons contributors", "official_status": "not_official", "forked_from": null},
+    "default_decision": "NONE",
+    "uncertainty": {"unknown": "WATCH", "disputed": "WATCH", "expired": "WATCH"},
+    "exclusions": [
+      {
+        "rule_id": "exclude-confirmed-military-specific",
+        "description": "Exclude confirmed claims that the contract subject itself is military-specific.",
+        "match": {"categories": ["military_contract"], "predicates": ["contract_subject_classification"]},
+        "condition": {"field": "claim.value.classification", "operator": "eq", "value": "military_specific"},
+        "min_confidence": 0.8,
+        "decision": "EXCLUDE"
+      },
+      {
+        "rule_id": "exclude-confirmed-ohchr-settlement-related",
+        "description": "Exclude only confirmed OHCHR settlement-related activity claims.",
+        "match": {"categories": ["human_rights"], "predicates": ["ohchr_settlement_related_activity"]},
+        "min_confidence": 0.8,
+        "decision": "EXCLUDE"
+      }
+    ],
+    "preferences": []
+  }
+]

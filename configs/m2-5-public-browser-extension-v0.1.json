@@ -1,0 +1,35 @@
+{
+  "issue": 91,
+  "artifact_version": "m2-5-public-browser-extension-v0.1",
+  "browsers": [
+    "chrome",
+    "edge",
+    "firefox",
+    "safari"
+  ],
+  "public_topics": [
+    "military_defence",
+    "ohchr_settlement_related"
+  ],
+  "permissions": {
+    "forbidden": [
+      "<all_urls>",
+      "history",
+      "cookies",
+      "webRequest",
+      "nativeMessaging"
+    ]
+  },
+  "manual_search_required": true,
+  "page_hint_identity_authority": false,
+  "policy_evaluator_location": "python_release_time_only",
+  "telemetry": false,
+  "account_required": false,
+  "remote_executable_code": false,
+  "store_submission_requires_human_approval": true,
+  "source_rights_contract": "configs/public-client-sources-v0.1.json",
+  "preserved_issue": 85,
+  "evidence_pack_mode": "bundled_release_asset",
+  "release_requires_all_public_topics_ready": true,
+  "public_release_authority": "human_only"
+}

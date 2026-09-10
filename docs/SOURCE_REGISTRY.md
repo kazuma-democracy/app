@@ -111,3 +111,15 @@ If rights are unclear, store a locator/hash/derived normalized fact only where l
 - a company name appearing in an article without primary/source verification.
 
 These may generate research leads, but must never directly trigger a consequential WA Commons classification.
+
+## Public browser-client rights observations (2026-09-11)
+
+These decisions are narrower than the registry's evidentiary `ADOPT` / `WATCH` states. They govern only which fields may be copied into the public browser-extension pack.
+
+- `jp-mod-procurement`: `PUBLIC_FIELDS_ALLOWED` for normalized narrow claim/provenance fields under the Ministry of Defense PDL1.0-style site terms, with attribution and per-record third-party exceptions checked. Raw source rows/documents are not shipped.
+- `jp-nta-corporate-number`: `PUBLIC_FIELDS_ALLOWED` for corporate number, legal name and required source metadata under the Corporate Number Publication Site PDL1.0-style terms, with attribution.
+- `jp-edinet`: `PUBLIC_FIELDS_ALLOWED` for the minimal EDINET/corporate-number/securities-code identity fields required by the public projection under the EDINET PDL1.0-style terms, with attribution and supported retrieval methods.
+- `jp-jpx-listed`: `BLOCK_PUBLIC_REDISTRIBUTION_REVIEW` for row-level public-client fields. Current JPX site terms prohibit unpermitted commercial-purpose collection and secondary use; the existing local #53 universe is not republished.
+- `ohchr-settlements-business`: `BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED`. General UN copyright guidance requires written permission absent a more specific applicable reuse license, so the browser client reports this topic as `NOT_INTEGRATED` until a permission decision is recorded.
+
+The machine-readable allowlist and checked terms locators are versioned in `configs/public-client-sources-v0.1.json`. A source that is evidentially useful but not public-client-cleared remains blocked; blocked source rows never become evidence of absence.

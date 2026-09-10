@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WA Commons</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <h1>WA Commons</h1>
+    <label for="profile" data-i18n="profileLabel"></label>
+    <select id="profile"></select>
+    <form id="search-form">
+      <label for="query" data-i18n="searchLabel"></label>
+      <input id="query" type="search" autocomplete="off">
+      <button type="submit" data-i18n="searchButton"></button>
+    </form>
+    <button id="page-hint" type="button" data-i18n="pageHintButton"></button>
+    <p id="status" role="status" aria-live="polite"></p>
+    <section id="results" aria-label="search results"></section>
+    <section id="detail" hidden></section>
+  </main>
+  <script type="module" src="popup.mjs"></script>
+</body>
+</html>

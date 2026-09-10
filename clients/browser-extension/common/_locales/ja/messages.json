@@ -1,0 +1,113 @@
+{
+  "extensionName": {
+    "message": "WA Commons 企業チェック"
+  },
+  "extensionDescription": {
+    "message": "企業の公開Evidenceと自分の方針を確認します。"
+  },
+  "extensionAction": {
+    "message": "WA Commonsで企業を確認"
+  },
+  "searchLabel": {
+    "message": "会社名・証券コード"
+  },
+  "searchPlaceholder": {
+    "message": "例：1001 / 会社名"
+  },
+  "searchButton": {
+    "message": "検索"
+  },
+  "profileLabel": {
+    "message": "表示する方針"
+  },
+  "profileInfo": {
+    "message": "情報だけ見る"
+  },
+  "profileMilitary": {
+    "message": "軍事specificを避ける"
+  },
+  "profileSettlement": {
+    "message": "OHCHR入植地関連を避ける"
+  },
+  "profileBoth": {
+    "message": "軍事specific・OHCHR入植地関連を避ける"
+  },
+  "noResults": {
+    "message": "候補が見つかりませんでした。"
+  },
+  "chooseCompany": {
+    "message": "候補を選んでください。"
+  },
+  "securityCodeLabel": {
+    "message": "証券コード"
+  },
+  "identityLabel": {
+    "message": "企業同定"
+  },
+  "policyResultLabel": {
+    "message": "あなたの方針での表示"
+  },
+  "noneWarning": {
+    "message": "NONEは安全・問題なしを意味しません。公開Evidenceと選択した方針でEXCLUDE/WATCHにならなかった状態です。"
+  },
+  "militaryTopic": {
+    "message": "軍事・防衛関連Evidence"
+  },
+  "settlementTopic": {
+    "message": "OHCHR入植地関連Evidence"
+  },
+  "evidenceLabel": {
+    "message": "Evidence"
+  },
+  "sourceLabel": {
+    "message": "出典"
+  },
+  "evidenceDateLabel": {
+    "message": "Evidence日"
+  },
+  "retrievedAtLabel": {
+    "message": "取得日時"
+  },
+  "challengeLabel": {
+    "message": "訂正・異議を申し立てる"
+  },
+  "packVersionLabel": {
+    "message": "データ版"
+  },
+  "generatedAtLabel": {
+    "message": "生成日時"
+  },
+  "loadError": {
+    "message": "データを読み込めませんでした。"
+  },
+  "stateAVAILABLE": {
+    "message": "利用可能"
+  },
+  "stateOBSERVED": {
+    "message": "記録あり"
+  },
+  "stateNO_MATCH": {
+    "message": "該当記録なし"
+  },
+  "stateUNKNOWN": {
+    "message": "不明"
+  },
+  "stateUNRESOLVED_IDENTITY": {
+    "message": "企業同定未解決"
+  },
+  "stateNOT_INTEGRATED": {
+    "message": "未統合"
+  },
+  "stateDISPUTED": {
+    "message": "争いあり"
+  },
+  "stateEXPIRED": {
+    "message": "期限切れ"
+  },
+  "pageHintButton": {
+    "message": "選択中の文字から候補を探す"
+  },
+  "pageHintUnavailable": {
+    "message": "現在のページから検索候補を取得できませんでした。"
+  }
+}
