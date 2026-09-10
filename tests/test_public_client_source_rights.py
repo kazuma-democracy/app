@@ -50,4 +50,3 @@ def test_rights_contract_rejects_non_boolean_flags(tmp_path):
     )
     with pytest.raises(ValueError, match="must be boolean"):
         load_public_source_rights(bad)
-
