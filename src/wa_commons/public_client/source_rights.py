@@ -56,7 +56,10 @@ def load_public_source_rights(path: Path) -> dict[str, PublicSourceRights]:
         if not isinstance(fields, list) or any(not str(field).strip() for field in fields):
             raise ValueError(f"allowed_fields must be a list of non-empty strings for {source_id}")
         allowed_fields = frozenset(str(field).strip() for field in fields)
-        raw_rows_public = bool(item.get("raw_rows_public", False))
+        attribution_required = item.get("attribution_required", False)
+        raw_rows_public = item.get("raw_rows_public", False)
+        if not isinstance(attribution_required, bool) or not isinstance(raw_rows_public, bool):
+            raise ValueError(f"rights flags must be boolean for {source_id}")
         if state != PUBLIC_FIELDS_ALLOWED and allowed_fields:
             raise ValueError(f"blocked source cannot allow public fields: {source_id}")
         if state != PUBLIC_FIELDS_ALLOWED and raw_rows_public:
@@ -67,7 +70,7 @@ def load_public_source_rights(path: Path) -> dict[str, PublicSourceRights]:
             terms_url=terms_url,
             checked_at=checked_at,
             allowed_fields=allowed_fields,
-            attribution_required=bool(item.get("attribution_required", False)),
+            attribution_required=attribution_required,
             raw_rows_public=raw_rows_public,
             note=note,
         )

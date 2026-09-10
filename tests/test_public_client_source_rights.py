@@ -38,3 +38,16 @@ def test_invalid_rights_contract_is_rejected(tmp_path):
     )
     with pytest.raises(ValueError, match="blocked source cannot allow public fields"):
         load_public_source_rights(bad)
+
+def test_rights_contract_rejects_non_boolean_flags(tmp_path):
+    bad = tmp_path / "bad-flags.json"
+    bad.write_text(
+        '[{"source_id":"x","state":"PUBLIC_FIELDS_ALLOWED",'
+        '"terms_url":"https://example.invalid/terms","checked_at":"2026-09-11",'
+        '"allowed_fields":["field"],"attribution_required":"false",'
+        '"raw_rows_public":"false","note":"x"}]',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="must be boolean"):
+        load_public_source_rights(bad)
+
