@@ -58,3 +58,5 @@ def test_runbook_requires_human_approval_for_all_store_paths():
     assert "OHCHR is optional for v0.1 release" in text
     assert "military_defence" in text
     assert "NOT_INTEGRATED" in text
+    assert "hidden from the v0.1 user interface" in text
+    assert "OHCHR `NOT_INTEGRATED` rendering PASS/FAIL" not in text

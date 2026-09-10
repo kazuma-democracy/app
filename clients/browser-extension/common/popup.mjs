@@ -6,9 +6,10 @@ const DEFAULT_PROFILE = "public:information-only:v1";
 const PROFILES = [
   ["public:information-only:v1", "profileInfo"],
   ["public:strict-military-specific:v1", "profileMilitary"],
-  ["public:ohchr-settlement-avoidance:v1", "profileSettlement"],
-  ["public:military-and-settlement:v1", "profileBoth"],
 ];
+const PROFILE_IDS = new Set(PROFILES.map(([value]) => value));
+const VISIBLE_TOPICS = new Set(["military_defence"]);
+const VISIBLE_EVIDENCE_CATEGORIES = new Set(["military_contract"]);
 
 const form = document.querySelector("#search-form");
 const query = document.querySelector("#query");
@@ -58,10 +59,10 @@ function appendField(parent, labelKey, value) {
 function renderTopics(parent, company) {
   const labels = {
     military_defence: "militaryTopic",
-    ohchr_settlement_related: "settlementTopic",
   };
 
   for (const [topicId, topic] of Object.entries(company.topics ?? {})) {
+    if (!VISIBLE_TOPICS.has(topicId)) continue;
     const card = element("section", undefined, "card");
     card.append(element("h3", t(labels[topicId] ?? topicId)));
     card.append(element("p", stateText(topic.state)));
@@ -84,10 +85,13 @@ function safeLink(url, text) {
 function renderEvidence(parent, company) {
   const section = element("section", undefined, "card");
   section.append(element("h3", t("evidenceLabel")));
-  if (!(company.evidence ?? []).length) {
+  const visibleEvidence = (company.evidence ?? []).filter((evidence) =>
+    VISIBLE_EVIDENCE_CATEGORIES.has(evidence?.narrow_claim?.category),
+  );
+  if (!visibleEvidence.length) {
     section.append(element("p", stateText("NO_MATCH")));
   }
-  for (const evidence of company.evidence ?? []) {
+  for (const evidence of visibleEvidence) {
     const item = element("article");
 
     const claim = evidence.narrow_claim ?? {};
@@ -166,7 +170,8 @@ async function loadPack() {
 async function initialize() {
   localize();
   const stored = await api.storage.local.get("profile_id");
-  profile.value = stored?.profile_id || DEFAULT_PROFILE;
+  const storedProfile = stored?.profile_id;
+  profile.value = PROFILE_IDS.has(storedProfile) ? storedProfile : DEFAULT_PROFILE;
   pack = await loadPack();
   status.textContent = "";
 }

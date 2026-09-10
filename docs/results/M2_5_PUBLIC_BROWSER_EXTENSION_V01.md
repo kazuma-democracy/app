@@ -40,7 +40,7 @@ The public MOD projection is deliberately narrower than the canonical internal c
 
 ## Public policy measurement
 
-Four versioned public profiles were evaluated with the existing canonical Python evaluator after a public-client-only relevance scope filter. The scope filter prevents uncertainty from an unrelated topic from affecting a profile that has no rule for that topic.
+Four versioned profiles were evaluated with the existing canonical Python evaluator after a public-client-only relevance scope filter. Only the information-only and strict-military-specific profiles are exposed in the v0.1 user interface. The OHCHR-related profiles remain internal regression/future-capability artifacts while that feature is unfinished. The scope filter prevents uncertainty from an unrelated topic from affecting a profile that has no rule for that topic.
 
 | Profile | EXCLUDE | WATCH | NONE |
 | --- | ---: | ---: | ---: |
@@ -54,7 +54,7 @@ Four versioned public profiles were evaluated with the existing canonical Python
 - Current real MOD snapshot contains no measured `MILITARY_SPECIFIC` TSE-linked classification, so no public profile emits EXCLUDE from this snapshot.
 - `NONE` is not PASS, clean, safe, peaceful, approved, or proof that relevant conduct does not exist.
 
-The information-only profile intentionally has no consequential rule. The OHCHR-only profile cannot infer absence while its source is not integrated.
+The information-only profile intentionally has no consequential rule. The OHCHR-related profiles are not user-selectable in v0.1 and cannot infer absence while the source is not integrated.
 
 ## Topic states
 
@@ -70,7 +70,7 @@ Capability: **CAPABILITY_READY**
 Release scope: STORE_SUBMISSION_READY
 Required v0.1 topic: military_defence = AVAILABLE
 Optional v0.1 topic: ohchr_settlement_related = NOT_INTEGRATED
-OHCHR is optional for v0.1 release; its unresolved reuse permission remains visible and blocks only that topic.
+OHCHR is optional for v0.1 release; its unresolved reuse permission remains recorded in the technical evidence/release state and blocks only that topic. The unfinished OHCHR feature is hidden from the v0.1 user interface.
 OHCHR rights state: BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED / ohchr-settlements-business
 Israel/OPT topic: NOT_INTEGRATED
 
@@ -138,6 +138,6 @@ The full suite was run once after the Task 9 capability files were present. This
 
 **Not released.**
 
-Store submission is a separate external side effect and requires explicit human approval. The approved v0.1 release scope requires `military_defence` to be ready and allows the optional `ohchr_settlement_related` topic to remain visibly `NOT_INTEGRATED`. The OHCHR reuse question is not waived or converted into a negative finding.
+Store submission is a separate external side effect and requires explicit human approval. The approved v0.1 release scope requires `military_defence` to be ready and allows the optional `ohchr_settlement_related` topic to remain internally `NOT_INTEGRATED` while its unfinished controls/cards are hidden from the v0.1 user interface. The OHCHR reuse question is not waived or converted into a negative finding.
 
 No Chrome Web Store, Microsoft Edge Add-ons, addons.mozilla.org, or Apple App Store submission has been performed by this result yet.
