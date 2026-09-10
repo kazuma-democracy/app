@@ -151,6 +151,7 @@ def parse_workbook(
 ) -> list[ProcurementObservation]:
     path = Path(path)
     digest = sha256(path)
+    id_namespace = "mod-fy2026-04" if snapshot_version == SNAPSHOT_VERSION else f"mod:{snapshot_version}"
     wb = load_workbook(path, read_only=True, data_only=True)
     observations: list[ProcurementObservation] = []
     for ws in wb.worksheets:
@@ -176,7 +177,7 @@ def parse_workbook(
             decision, entity_id = resolve_supplier(supplier_name, corporate_number)
             observations.append(
                 ProcurementObservation(
-                    observation_id=f"wc:obs:mod:{snapshot_version}:{ws.title}:{row_no}",
+                    observation_id=f"wc:obs:{id_namespace}:{ws.title}:{row_no}",
                     subject=subject,
                     supplier_name=supplier_name,
                     supplier_address=supplier_address,
@@ -211,6 +212,7 @@ def observation_to_claim(observation: ProcurementObservation) -> dict | None:
     # IDs are ASCII-only, so derive a stable key from the full observation ID while
     # keeping the human-readable workbook locator separately in evidence.locator.
     stable_key = hashlib.sha256(observation.observation_id.encode("utf-8")).hexdigest()[:16]
+    id_namespace = "mod-fy2026-04" if observation.snapshot_version == SNAPSHOT_VERSION else f"mod:{observation.snapshot_version}"
     value = {
         "contracting_authority": observation.contracting_authority,
         "contract_subject": observation.subject,
@@ -220,7 +222,7 @@ def observation_to_claim(observation: ProcurementObservation) -> dict | None:
     }
     return {
         "schema_version": "0.1",
-        "claim_id": f"wc:claim:mod:{observation.snapshot_version}:{stable_key}",
+        "claim_id": f"wc:claim:{id_namespace}:{stable_key}",
         "subject": {
             "entity_id": observation.entity_id,
             "entity_type": "company",
@@ -243,7 +245,7 @@ def observation_to_claim(observation: ProcurementObservation) -> dict | None:
             "effective_to": observation.contract_date,
         },
         "evidence": [{
-            "evidence_id": f"wc:evidence:mod:{observation.snapshot_version}:{stable_key}",
+            "evidence_id": f"wc:evidence:{id_namespace}:{stable_key}",
             "source_id": SOURCE_ID,
             "source_url": observation.source_url,
             "publisher": "Japan Ministry of Defense",

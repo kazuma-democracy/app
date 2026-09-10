@@ -116,4 +116,8 @@ def test_parse_workbook_defaults_remain_current_snapshot(tmp_path: Path) -> None
     observation = parse_workbook(path, retrieved_at="2026-08-21T12:00:00Z")[0]
     assert observation.contract_date == "2026-04-01"
     assert observation.snapshot_version == "fy2026-04-buppin-competitive"
-    assert observation.observation_id.startswith("wc:obs:mod:fy2026-04-buppin-competitive:")
+    assert observation.observation_id.startswith("wc:obs:mod-fy2026-04:")
+    claim = observation_to_claim(observation)
+    assert claim is not None
+    assert claim["claim_id"].startswith("wc:claim:mod-fy2026-04:")
+    assert claim["evidence"][0]["evidence_id"].startswith("wc:evidence:mod-fy2026-04:")
