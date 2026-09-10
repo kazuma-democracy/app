@@ -1,6 +1,6 @@
 # 1306 Prospective Control v0.3 Design
 
-Status: **PROPOSED — user-approved direction, written for review**
+Status: **APPROVED DIRECTION — rights-hardened after exact primary-source review**
 
 Date: 2026-09-10
 Issue: #85
@@ -8,49 +8,54 @@ Base: `main@11ec8b2758a113ea91fc16e7ec881d20fd5fddbe`
 
 ## 1. Purpose
 
-Unblock the real three-month leak-safe Historical Replay without weakening the existing zero-cost, point-in-time, as-known-at-cutoff, no-performance-selection or source-rights rules.
+Unblock the real three-month leak-safe Historical Replay without weakening the existing zero-cost, point-in-time, as-known-at-cutoff, no-performance-selection, source-rights, or fail-closed rules.
 
-The adopted v0.2 capability is preserved. This design adds the smallest new control-source path needed for a **prospective** replay: NEXT FUNDS TOPIX ETF (1306) setting portfolios captured before each decision cutoff and bound to reproducible acquisition evidence.
+The adopted v0.2 capability is preserved. v0.3 adds the smallest new control-source path needed for a **prospective** replay: NEXT FUNDS TOPIX ETF (1306) setting portfolios captured before each decision cutoff and bound to reproducible acquisition evidence.
 
 This design does not retrofit 1306 into the existing 1475 contract and does not reinterpret historical 1475 availability.
 
 ## 2. Why v0.3 is needed
 
-The real preregistered 2026-Q1 v0.2 replay is blocked for two independent reasons:
+The preregistered 2026-Q1 v0.2 replay is blocked for two independent reasons:
 
 - Q1 was contaminated by preselection Market Value / Weight inspection;
 - the original historical publication time of the dated 1475 holdings cannot be independently proven at the three decision cutoffs.
 
 No Q1 return was loaded and no alternate period was selected from observed performance.
 
-Research on 2026-09-10 found a better prospective route:
+Research on 2026-09-10 established a prospective alternative:
 
-- the official 1306 product page publishes dated setting portfolios for future/current application dates;
+- the official 1306 product page publishes dated setting portfolios for application dates;
 - multiple same-date portfolios correspond to different provisional unit sizes rather than revision versions;
-- the raw portfolio can be captured locally before the decision cutoff, hashed, and externally time-evidenced without publishing the raw file;
-- the method can therefore create its own future point-in-time availability evidence instead of trying to reconstruct an unprovable historical publication timestamp.
+- the raw portfolio can be captured locally before the decision cutoff;
+- a non-reconstructive acquisition commitment can be timestamped publicly without publishing source rows or the raw-source digest;
+- future point-in-time availability can therefore be observed prospectively instead of reconstructed later.
 
 ## 3. Source role and factual scope
 
-New source role:
+New source kind:
 
 `NOMURA_1306_PROSPECTIVE_SETTING_PORTFOLIO`
 
+Canonical product page:
+
+`https://nextfunds.jp/lineup/1306/`
+
 Source: NEXT FUNDS TOPIX ETF (1306) setting portfolio published by Nomura Asset Management.
 
-The source proves only the portfolio that Nomura publishes for physical creation of its ETF for the stated application date. It is **not** treated as official JPX TOPIX constituent weights.
+The source proves only the portfolio Nomura publishes for physical creation of its ETF for the stated application date. It is **not** official JPX TOPIX constituent weights.
 
-P0 therefore remains an **investable control allocation**, while the external financial benchmark family remains TOPIX Total Return under the already approved architecture.
+P0 therefore remains an **investable control allocation**. The external financial benchmark family remains TOPIX Total Return under the already approved architecture.
 
-## 4. Selection rule for 001 / 002 / 003
+## 4. Selection rule for same-date portfolios
 
-The current official 1306 page exposes multiple setting portfolios for the same application date. On 2026-09-10 the observed mapping was:
+The official 1306 page currently exposes three setting portfolios for the same application date. On 2026-09-10 the observed semantic sizes were:
 
-- `001` -> 20 million provisional units;
-- `002` -> 50 million provisional units;
-- `003` -> 100 million provisional units.
+- 20 million provisional units;
+- 50 million provisional units;
+- 100 million provisional units.
 
-The suffix itself is not the semantic rule.
+Observed file suffixes such as `001`, `002`, and `003` are not the rule.
 
 Preregistered rule:
 
@@ -58,17 +63,22 @@ Preregistered rule:
 
 Consequences:
 
-- never choose a suffix based on later returns, coverage, active share, or a preferred result;
-- do not hard-code `003` as the meaning of the rule;
-- if future Nomura publication structure changes, select by parsed provisional-unit size;
-- if provisional-unit size cannot be identified deterministically, fail closed with `BLOCK_REPRODUCIBILITY`;
-- if two distinct files claim the same maximum provisional-unit size without a deterministic primary-source distinction, fail closed rather than choose manually.
+- never choose a suffix based on later returns, coverage, active share, or preferred output;
+- do not hard-code `003` as meaning "largest";
+- parse provisional-unit size from primary-source metadata;
+- if unit size cannot be identified deterministically, block;
+- if two distinct files claim the same maximum size without a deterministic primary-source distinction, block rather than choose manually.
+
+Recommended blocker reasons:
+
+- `CONTROL_PROVISIONAL_UNITS_UNRESOLVED`
+- `CONTROL_MAX_UNIT_SELECTION_AMBIGUOUS`
 
 ## 5. Application-date rule
 
-For each replay evaluation period `YYYY-MM`, use the 1306 setting portfolio whose **application date equals the replay decision-cutoff trading date**.
+For replay evaluation period `YYYY-MM`, use the 1306 setting portfolio whose **application date equals the replay decision-cutoff trading date**.
 
-The existing replay period semantics remain unchanged:
+Existing replay period semantics remain unchanged:
 
 - target weights are frozen at the preceding month-end decision cutoff;
 - the following calendar month is the evaluation period;
@@ -78,62 +88,103 @@ If no qualifying same-date setting portfolio is publicly available and captured 
 
 ## 6. Availability evidence contract
 
-`as_of_date` or application date alone never establishes historical availability.
+Application date alone never establishes historical availability.
 
-A prospective source capture must record at minimum:
+Each local private capture manifest must record at minimum:
 
 - `source_kind`;
 - canonical source locator;
 - application date;
 - provisional-unit size;
-- source retrieval timestamp with timezone;
+- retrieval timestamp with timezone;
 - byte length;
 - SHA-256 of the exact raw bytes;
 - HTTP `Last-Modified` if exposed;
 - HTTP `ETag` if exposed;
-- HTTP status/content-type where useful to detect source drift;
+- HTTP status/content-type where useful for drift detection;
 - raw-local path outside the public repository;
 - source-rights state;
-- acquisition-manifest commit SHA and commit timestamp;
-- optional OpenTimestamps proof state.
+- random commitment nonce;
+- private capture semantic SHA-256;
+- public commitment SHA-256;
+- public timestamp reference and timestamp.
 
 Qualification requires both:
 
-1. the observed source retrieval timestamp is at or before the decision cutoff; and
-2. a repo-safe acquisition manifest containing the locator + exact raw-byte SHA-256 is committed to GitHub at or before the decision cutoff.
+1. observed retrieval at or before the decision cutoff; and
+2. a matching **blinded public commitment** timestamped at or before the cutoff.
 
-The public Git commit is the required independent time evidence for v0.3. HTTP server metadata strengthens the provenance when exposed but does not replace the observed retrieval event. If the manifest is first committed after the cutoff, the month fails closed even when the local file claims an earlier retrieval time.
+If either side is missing or after cutoff, fail closed.
 
-A later verification must re-hash the preserved local raw file and obtain the same SHA-256 frozen in the pre-cutoff manifest.
+## 7. Blinded public commitment
 
-## 7. OpenTimestamps role
+Exact NEXT FUNDS site terms were rechecked on 2026-09-10 after the initial design draft. The site policy states that site content is copyrighted and restricts unauthorized reproduction, quotation, republication, or transfer. The 1306 product page also prohibits processing, reuse, or redistribution for third-party provision. Therefore v0.3 must not publish raw rows, excerpts, share counts by security, or the exact raw-source SHA-256 as its timestamp artifact.
 
-OpenTimestamps is **strengthening evidence, not a required gate** for v0.3.
+Primary policy page checked:
 
-When operational:
+`https://nextfunds.jp/guide/`
 
-- timestamp the exact raw-file digest without publishing the raw 1306 CSV;
-- preserve the `.ots` proof locally or in a repo-safe form if it contains no restricted source rows;
-- verify that the proof binds to the exact raw-file digest;
-- never treat OpenTimestamps as proof that Nomura itself published the file at a particular time.
+The public proof is instead a one-way blinded commitment.
 
-A failed or delayed OpenTimestamps anchor does not invalidate an otherwise valid capture because the required independent cutoff proof is the pre-cutoff public Git acquisition-manifest commit. This rule is fixed now, before any headline replay return is observed.
+Canonical construction:
 
-## 8. Rights and storage boundary
+```text
+private_capture_core = canonical_json({
+  source_kind,
+  source_locator,
+  application_date,
+  provisional_units,
+  retrieved_at,
+  source_bytes,
+  source_sha256
+})
 
-Nomura / NEXT FUNDS site terms restrict reuse and redistribution of site information.
+private_capture_sha256 = SHA256(private_capture_core)
+nonce = 32 random bytes
+public_commitment_sha256 = SHA256(
+  "wa-commons:1306:v0.3:" + private_capture_sha256 + ":" + nonce_hex
+)
+```
 
-Until an exact later rights review establishes broader permission:
+Rules:
 
-- raw 1306 setting-portfolio CSV bytes remain **local-only**;
-- raw rows are not committed to GitHub;
-- public repository artifacts contain only repo-safe methodology and provenance facts such as locator, dates, unit size, byte length, cryptographic hashes, acquisition state and aggregate derived diagnostics where rights-cleared;
-- normalized row-level holdings are local replay inputs, not public source mirrors;
-- publication of aggregate financial results remains subject to the existing source-rights/publication contract.
+- `source_sha256`, `private_capture_sha256`, and `nonce` remain local/private while rights remain restrictive;
+- the public timestamp artifact contains only a capture identifier, method version, and `public_commitment_sha256`;
+- it contains no raw row, security-level share count, raw-source digest, or reversible source excerpt;
+- later local verification recomputes the commitment from the preserved raw file and private manifest;
+- a mismatch is `CONTROL_SOURCE_HASH_MISMATCH` or `CONTROL_COMMITMENT_MISMATCH`;
+- publication of anything richer remains blocked unless a later explicit rights review changes the registry state.
 
-The Source Registry must add this source explicitly rather than silently broadening the 1475 row.
+## 8. Public timestamp channel
 
-## 9. Reuse of v0.2 architecture
+The preferred v0.3 independent time evidence is a GitHub-server-timestamped record of the blinded commitment, created before the decision cutoff.
+
+The implementation must separate:
+
+- local/private acquisition evidence;
+- public opaque commitment;
+- replay qualification.
+
+The public timestamp record must expose an externally observable creation time. A locally supplied timestamp is not sufficient by itself.
+
+The implementation plan may use a GitHub API-created Issue comment or equivalent GitHub-server-timestamped record. If the chosen record is editable, later verification must fail closed when the record was altered after creation or otherwise cannot be shown to bind the same commitment.
+
+OpenTimestamps may be used as strengthening evidence on the **blinded commitment**, but it is not the sole cutoff gate because a later Bitcoin anchor only proves existence no later than the anchor time.
+
+## 9. Rights and storage boundary
+
+Until a later explicit rights review establishes broader permission:
+
+- downloaded 1306 CSV bytes remain **local/private research inputs**;
+- raw rows and source-level security/share-count data are not committed to GitHub;
+- exact raw-source SHA-256 remains private;
+- normalized row-level holdings remain local replay inputs;
+- public GitHub evidence is limited to methodology, source citation, non-reconstructive blinded commitments, blocker states, and rights-cleared aggregate results;
+- any uncertainty about public source-derived output blocks publication rather than being silently treated as permitted.
+
+The Source Registry must add 1306 explicitly as a separate `WATCH`-style source with the exact checked terms and the local/private boundary. Do not broaden the existing 1475 row.
+
+## 10. Reuse of v0.2 architecture
 
 USE / EXTEND is preferred over BUILD.
 
@@ -154,18 +205,19 @@ Keep unchanged where possible:
 
 Add only:
 
-1. a 1306 control-source parser / adapter;
-2. a prospective acquisition-evidence manifest schema;
-3. a new v0.3 config source kind and qualifier branch;
-4. tests proving semantic portfolio selection, hash binding, cutoff behavior and no v0.2 regression.
+1. a focused 1306 parser / adapter;
+2. a private acquisition-manifest and blinded-commitment helper;
+3. a v0.3 source kind and qualifier branch;
+4. a v0.3 preparation path that reuses existing identity/screening/policy plumbing;
+5. focused tests proving selection, commitment binding, cutoff behavior, rights boundaries, and v0.2 compatibility.
 
-Do not fork the entire replay engine into a parallel implementation.
+Do not fork the entire replay engine.
 
-## 10. Control adapter output
+## 11. 1306 adapter output
 
-The adapter should emit the same downstream conceptual information used by the current investable-control mapping path, with source-specific provenance separated from normalized holdings.
+Before price valuation, the parser emits source-specific holdings with share quantities but no weights.
 
-Minimum normalized control manifest fields:
+Minimum private manifest fields:
 
 ```text
 source_kind
@@ -177,17 +229,19 @@ source_locator
 source_sha256
 source_bytes
 rights_state
-acquisition_manifest_commit_sha
-acquisition_manifest_committed_at
-timestamp_proof_state
+private_capture_sha256
+commitment_nonce
+public_commitment_sha256
+public_timestamp_ref
+public_timestamp_at
 semantic_snapshot_sha256
 ```
 
-Each holding row should preserve the source security code and share count required to construct relative control weights after the existing price/identity process.
+Each holding row preserves only the source fields required for local replay, including normalized TSE security code, name where available, and setting share count.
 
-The adapter must not invent market value from the source and must not inspect replay-period return values during source selection.
+The adapter must not invent market value and must not inspect evaluation-period returns during selection.
 
-## 11. Weight construction
+## 12. Weight construction
 
 1306 setting portfolios publish share quantities rather than final benchmark weights.
 
@@ -200,25 +254,23 @@ control_weight_i = raw_value_i / sum(raw_value_j)
 
 Requirements:
 
-- cutoff valuation prices come from the already adopted monthly-market / point-in-time price source contract;
+- cutoff valuation prices come from the adopted monthly-market point-in-time price primitive;
 - price dates must not exceed the decision cutoff;
-- missing required price or unresolved corporate action fails closed;
-- no return value from the evaluation month enters the calculation;
-- residual/unmapped sleeve behavior reuses the v0.2 investable-proxy contract rather than introducing an optimizer;
-- all inputs and semantic hashes are frozen before evaluation-month returns are loaded.
+- missing required price or unresolved corporate action blocks;
+- evaluation-month returns never enter the calculation;
+- residual/unmapped sleeve behavior reuses v0.2;
+- all source, identity, price, screening, and target semantic hashes freeze before evaluation returns are loaded.
 
-Because this rule uses cutoff prices, merely inspecting source share counts is not equivalent to inspecting candidate financial performance. However, headline periods used for schema/row inspection before preregistration remain conservatively excluded.
+## 13. First headline candidate window
 
-## 12. First headline candidate window
-
-Canonical exclusions already established:
+Canonical exclusions remain:
 
 - 2026-01 through 2026-03: contaminated / historical availability unresolved;
 - 2026-04 through 2026-08: engineering-validation periods;
-- 2026-09: conservatively non-headline because 1306 structure and at least one share-count row were inspected during the feasibility Spike;
+- 2026-09: non-headline because 1306 structure and share-count data were inspected during the feasibility Spike;
 - 2026-10: separate true future holdout under #78.
 
-Preregister the earliest clean prospective candidate window as:
+First clean prospective headline candidate window:
 
 ```text
 2026-11
@@ -226,34 +278,30 @@ Preregister the earliest clean prospective candidate window as:
 2027-01
 ```
 
-Under the existing period semantics, these use decision cutoffs at the preceding month-end trading dates in late October, November and December 2026.
+These use the preceding month-end decision cutoffs in late October, November, and December 2026 under the existing trading-calendar rule.
 
-This does not repurpose the October holdout. The October holdout remains the independently preregistered 2026-10-01 through 2026-10-30 realized interval with its existing portfolio definition and return contract.
+The October 2026 holdout remains independently defined under #78 and is not repurposed.
 
-The 1306 method itself must be versioned and merged before October performance can be used to alter it.
-
-## 13. Capture and freeze order
+## 14. Capture and freeze order
 
 For each prospective cutoff:
 
-1. discover only the official same-date setting-portfolio metadata necessary to identify candidate files and provisional-unit sizes;
-2. select the largest published provisional-unit file by the preregistered semantic rule;
-3. retrieve raw bytes locally before the cutoff;
-4. compute SHA-256 and write the repo-safe acquisition manifest;
-5. commit that acquisition manifest to GitHub before the cutoff;
-6. preserve raw bytes locally and optionally create OpenTimestamps proof;
-7. run candidate metadata qualification without evaluation-month performance values;
-8. when all three candidate months are qualified, write/hash the exact replay-window manifest;
-9. freeze P0/P1/P2 target weights for all three months;
-10. only then load the following-month market/benchmark return payloads.
+1. inspect only official same-date metadata needed to identify files and provisional-unit sizes;
+2. select the largest published provisional-unit file by the fixed semantic rule;
+3. retrieve raw bytes locally before cutoff;
+4. compute the private source hash, private capture hash, nonce, and blinded public commitment;
+5. create the public server-timestamped blinded commitment before cutoff;
+6. preserve raw bytes and private manifest locally;
+7. run metadata-only candidate qualification;
+8. after all three months qualify, write/hash the exact replay-window manifest;
+9. freeze P0/P1/P2 targets for all three months;
+10. only then load following-month market and benchmark returns.
 
-If one of the three months blocks after the method is frozen, preserve the block as a result. Do not slide the window forward or backward based on observed financial outcomes.
+If one of the three months blocks after the method is frozen, preserve the block. Do not slide the window based on performance.
 
-## 14. Required states
+## 15. Required states
 
-Reuse existing states and add source-specific blocker reasons only where they improve diagnostics without weakening semantics.
-
-At minimum:
+Reuse existing states:
 
 - `HISTORICAL_REPLAY_WINDOW_FROZEN`
 - `HISTORICAL_REPLAY_TARGETS_FROZEN`
@@ -265,7 +313,7 @@ At minimum:
 - `BLOCK_REPRODUCIBILITY`
 - `BLOCK_SOURCE_RIGHTS`
 
-Recommended blocker reasons:
+Recommended reasons:
 
 - `CONTROL_SOURCE_UNAVAILABLE`
 - `CONTROL_AVAILABILITY_UNVERIFIED`
@@ -274,58 +322,64 @@ Recommended blocker reasons:
 - `CONTROL_PROVISIONAL_UNITS_UNRESOLVED`
 - `CONTROL_MAX_UNIT_SELECTION_AMBIGUOUS`
 - `CONTROL_SOURCE_HASH_MISMATCH`
-- `CONTROL_ACQUISITION_MANIFEST_AFTER_CUTOFF`
-- `CONTROL_TIMESTAMP_PROOF_INVALID`
+- `CONTROL_COMMITMENT_MISMATCH`
+- `CONTROL_PUBLIC_TIMESTAMP_UNVERIFIED`
+- `CONTROL_PUBLIC_TIMESTAMP_AFTER_CUTOFF`
+- `CONTROL_SOURCE_RIGHTS_NOT_CLEARED`
 
-No missing source state becomes a clean/pass state.
+No missing source state becomes PASS/clean/safe.
 
-## 15. Tests
+## 16. Focused tests
 
-Focused tests must cover at least:
+Implementation tests must cover at least:
 
-- parse 1306 metadata and holdings from an engineering-only fixture;
-- `001/002/003`-like inputs selected by largest provisional-unit size, not suffix;
-- future suffix/order changes do not alter the semantic rule;
-- duplicate maximum size blocks if ambiguous;
+- parse an engineering-only 1306 fixture;
+- choose largest provisional-unit size independent of suffix/order;
+- ambiguous duplicate maximum blocks;
 - application-date mismatch blocks;
-- missing/after-cutoff `retrieved_at` blocks;
-- missing/after-cutoff acquisition-manifest commit blocks;
-- raw-file SHA mismatch blocks;
-- OpenTimestamps verification can strengthen but cannot replace the required Git commit gate;
-- source-rights mismatch blocks;
-- current v0.2 1475 qualification behavior remains unchanged;
-- preselection/performance-field guards still block leakage;
-- target freeze occurs before evaluation-period market-return loading;
-- exact three-month window rule remains deterministic.
+- missing/after-cutoff retrieval blocks;
+- private raw SHA mismatch blocks;
+- blinded commitment recomputes deterministically with fixed nonce;
+- changing any private capture field changes the commitment;
+- missing/after-cutoff public timestamp blocks;
+- no raw source SHA or row-level source data is emitted in the public commitment artifact;
+- rights mismatch blocks;
+- cutoff price valuation produces deterministic normalized weights;
+- missing cutoff price blocks before policy compilation;
+- v0.2 1475 qualification remains unchanged;
+- preselection/performance-field guards remain active;
+- target freeze precedes evaluation-return access;
+- exact 2026-11 / 2026-12 / 2027-01 window is deterministic.
 
-Run focused tests during implementation. Run the one final full repository suite only at the issue/review gate required by #85.
+Use focused tests during implementation. Run the final full repository suite only at the #85 review/acceptance gate.
 
-## 16. Non-goals
+## 17. Non-goals
 
-- no reconstruction of exact official historical TOPIX weights;
-- no claim that 1306 creation basket equals TOPIX constituent weights;
+- no exact historical official TOPIX-weight reconstruction;
+- no claim that 1306 creation basket equals official TOPIX weights;
 - no paid JPX reference-data purchase;
 - no Common Crawl dependency;
 - no daily market database;
-- no new scheduler/orchestration platform;
-- no policy changes to P0/P1/P2;
+- no new scheduler/orchestration framework;
+- no P0/P1/P2 policy change;
 - no optimizer or return forecast;
-- no publication of restricted raw source rows;
+- no public raw or row-level Nomura source mirror;
 - no real-money trading.
 
-## 17. Acceptance for implementation planning
+## 18. Acceptance for implementation planning
 
-This design is ready for implementation planning only if all are accepted:
+Implementation planning may proceed only under these fixed semantics:
 
-- 1306 is explicitly a prospective investable control, not official TOPIX weights;
-- source selection is fixed semantically as largest published provisional-unit portfolio for the cutoff application date;
+- 1306 is a prospective investable control, not official TOPIX weights;
+- source selection is largest published provisional-unit portfolio for the cutoff application date;
 - actual retrieval before cutoff is mandatory;
-- the locator + exact source SHA-256 acquisition manifest must be publicly Git-committed before cutoff;
+- raw source bytes and raw-source SHA remain local/private under the current restrictive terms;
+- public time evidence uses only a non-reconstructive blinded commitment;
+- the blinded commitment must be externally server-timestamped before cutoff;
 - OpenTimestamps is optional strengthening evidence, not the sole cutoff proof;
-- raw bytes remain local-only and GitHub stores only repo-safe provenance/hash artifacts;
-- v0.2 is extended rather than silently rewritten;
-- weight construction uses only point-in-time cutoff inputs and is frozen before returns;
-- 2026-11 / 2026-12 / 2027-01 is the first prospective headline candidate window;
+- v0.2 is extended, not silently rewritten;
+- weights use only cutoff-time inputs and freeze before returns;
+- 2026-11 / 2026-12 / 2027-01 is the first headline candidate window;
 - October 2026 remains the separate #78 future holdout;
-- blocked months remain blocked and are never replaced based on performance;
+- blocked months are never performance-substituted;
 - no replay return is inspected to select or revise these semantics.
