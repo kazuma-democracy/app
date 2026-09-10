@@ -55,6 +55,67 @@ def _block(status: str, candidate: Mapping[str, Any], reason: str) -> dict[str, 
     }
 
 
+def _valid_sha256(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value.strip()) is not None
+
+
+def _qualify_investable_proxy_candidate(
+    candidate: Mapping[str, Any],
+    config: Mapping[str, Any],
+    cutoff: datetime,
+) -> dict[str, Any]:
+    control = candidate.get("control_source_metadata")
+    if not isinstance(control, Mapping):
+        return _block("BLOCK_HISTORICAL_REPLAY_COVERAGE", candidate, "MISSING_CONTROL_SOURCE_METADATA")
+    if str(control.get("kind", "")) != "ISHARES_1475_POINT_IN_TIME":
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_CONTROL_KIND")
+    if control.get("exists") is not True or not str(control.get("locator", "")).strip():
+        return _block("BLOCK_HISTORICAL_REPLAY_COVERAGE", candidate, "CONTROL_SOURCE_UNAVAILABLE")
+    available_at = _parse_timestamp(control.get("available_at"))
+    if available_at is None:
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_CONTROL_AVAILABILITY")
+    if available_at > cutoff:
+        return _block("BLOCK_EVIDENCE_CUTOFF", candidate, "CONTROL_AVAILABLE_AFTER_CUTOFF")
+    as_of_date = str(control.get("as_of_date", ""))
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", as_of_date):
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_CONTROL_AS_OF_DATE")
+    if as_of_date > cutoff.date().isoformat():
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "CONTROL_AS_OF_AFTER_CUTOFF")
+    required_rights = str(config.get("allocation_source", {}).get("rights_required_state", "LOCAL_RESEARCH_ALLOWED"))
+    if str(control.get("rights_state", "")) != required_rights:
+        return _block("BLOCK_SOURCE_RIGHTS", candidate, "CONTROL_SOURCE_RIGHTS_NOT_CLEARED")
+    if not _valid_sha256(control.get("source_sha256")):
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_CONTROL_SOURCE_HASH")
+
+    identity = candidate.get("identity_source_metadata")
+    evidence = candidate.get("evidence_source_metadata")
+    if not isinstance(identity, Mapping) or identity.get("availability_complete") is not True:
+        return _block("BLOCK_EVIDENCE_CUTOFF", candidate, "IDENTITY_SOURCE_AVAILABILITY_INCOMPLETE")
+    if not isinstance(evidence, Mapping) or evidence.get("availability_complete") is not True:
+        return _block("BLOCK_EVIDENCE_CUTOFF", candidate, "EVIDENCE_SOURCE_AVAILABILITY_INCOMPLETE")
+    if not _valid_sha256(identity.get("semantic_source_sha256")) or not _valid_sha256(evidence.get("semantic_source_sha256")):
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_SOURCE_SEMANTIC_HASH")
+    identity_sha = str(identity.get("identity_semantic_sha256", "")).strip()
+    evidence_identity_sha = str(evidence.get("identity_semantic_sha256", "")).strip()
+    if identity_sha or evidence_identity_sha:
+        if not _valid_sha256(identity_sha) or not _valid_sha256(evidence_identity_sha) or identity_sha != evidence_identity_sha:
+            return _block("BLOCK_REPRODUCIBILITY", candidate, "IDENTITY_HASH_MISMATCH")
+
+    market_sources = candidate.get("market_source_metadata")
+    if not isinstance(market_sources, Mapping):
+        return _block("BLOCK_HISTORICAL_REPLAY_COVERAGE", candidate, "MISSING_MARKET_SOURCE_METADATA")
+    for role in config.get("required_market_source_roles", []):
+        source = market_sources.get(role)
+        if not isinstance(source, Mapping) or source.get("exists") is not True or not str(source.get("locator", "")).strip():
+            return _block("BLOCK_HISTORICAL_REPLAY_COVERAGE", candidate, f"MARKET_SOURCE_UNAVAILABLE:{role}")
+    return {
+        "status": "CANDIDATE_QUALIFIED",
+        "evaluation_period": str(candidate["evaluation_period"]),
+        "decision_cutoff": candidate["decision_cutoff"],
+        "blockers": [],
+    }
+
+
 def qualify_candidate_month(
     candidate: Mapping[str, Any],
     config: Mapping[str, Any],
@@ -71,6 +132,9 @@ def qualify_candidate_month(
     cutoff = _parse_timestamp(candidate.get("decision_cutoff"))
     if cutoff is None:
         return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_DECISION_CUTOFF")
+
+    if str(config.get("allocation_source", {}).get("kind", "")) == "ISHARES_1475_POINT_IN_TIME":
+        return _qualify_investable_proxy_candidate(candidate, config, cutoff)
 
     benchmark = candidate.get("benchmark_snapshot")
     if not isinstance(benchmark, Mapping):
@@ -147,6 +211,23 @@ def _freeze_candidate_record(
     candidate: Mapping[str, Any],
     qualified: Mapping[str, Any],
 ) -> dict[str, Any]:
+    if isinstance(candidate.get("control_source_metadata"), Mapping):
+        control = candidate["control_source_metadata"]
+        identity = candidate["identity_source_metadata"]
+        evidence = candidate["evidence_source_metadata"]
+        return {
+            "evaluation_period": qualified["evaluation_period"],
+            "decision_cutoff": qualified["decision_cutoff"],
+            "control_kind": control["kind"],
+            "control_as_of_date": control["as_of_date"],
+            "control_available_at": control["available_at"],
+            "control_source_locator": control["locator"],
+            "control_source_sha256": control["source_sha256"],
+            "control_rights_state": control["rights_state"],
+            "identity_source_semantic_sha256": identity["semantic_source_sha256"],
+            "evidence_source_semantic_sha256": evidence["semantic_source_sha256"],
+            "qualification_status": qualified["status"],
+        }
     benchmark = candidate["benchmark_snapshot"]
     screening = candidate["screening_snapshot"]
     return {
@@ -186,30 +267,43 @@ def freeze_replay_window(
     if window_length != 3:
         window_length = 3
 
-    qualified_periods = sorted(
-        qualified_by_period,
-        key=_month_ordinal,
-    )
-    triples: list[list[str]] = []
-    for index in range(len(qualified_periods) - window_length + 1):
-        periods = qualified_periods[index : index + window_length]
-        ordinals = [_month_ordinal(period) for period in periods]
-        if ordinals == list(
-            range(ordinals[0], ordinals[0] + window_length)
-        ):
-            triples.append(periods)
-
-    if not triples:
-        return {
-            "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE",
-            "window": [],
-            "candidate_results": candidate_results,
-        }
-
-    window = max(
-        triples,
-        key=lambda periods: _month_ordinal(periods[-1]),
-    )
+    selection_rule = str(config.get(
+        "selection_rule",
+        "MOST_RECENT_THREE_CONSECUTIVE_METADATA_QUALIFIED_MONTHS",
+    ))
+    if selection_rule == "EXACT_PREREGISTERED_THREE_CONSECUTIVE_METADATA_QUALIFIED_MONTHS":
+        window = [str(period) for period in config.get("headline_candidate_periods", [])]
+        if len(window) != window_length or any(period not in qualified_by_period for period in window):
+            return {
+                "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE",
+                "window": [],
+                "candidate_results": candidate_results,
+            }
+        ordinals = [_month_ordinal(period) for period in window]
+        if ordinals != list(range(ordinals[0], ordinals[0] + window_length)):
+            return {
+                "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE",
+                "window": [],
+                "candidate_results": candidate_results,
+            }
+    else:
+        qualified_periods = sorted(
+            qualified_by_period,
+            key=_month_ordinal,
+        )
+        triples: list[list[str]] = []
+        for index in range(len(qualified_periods) - window_length + 1):
+            periods = qualified_periods[index : index + window_length]
+            ordinals = [_month_ordinal(period) for period in periods]
+            if ordinals == list(range(ordinals[0], ordinals[0] + window_length)):
+                triples.append(periods)
+        if not triples:
+            return {
+                "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE",
+                "window": [],
+                "candidate_results": candidate_results,
+            }
+        window = max(triples, key=lambda periods: _month_ordinal(periods[-1]))
     frozen_candidates = [
         _freeze_candidate_record(*qualified_by_period[period])
         for period in window

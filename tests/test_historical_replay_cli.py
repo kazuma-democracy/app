@@ -170,3 +170,62 @@ def test_public_replay_payload_hides_financial_values_when_rights_uncleared() ->
     assert not any(token in serialized for token in forbidden)
     assert "0.02" not in serialized
     assert "0.03" not in serialized
+
+
+def _v02_cli_candidate(period: str, cutoff: str, as_of: str, suffix: str) -> dict:
+    return {
+        "evaluation_period": period,
+        "decision_cutoff": cutoff,
+        "control_source_metadata": {
+            "kind": "ISHARES_1475_POINT_IN_TIME",
+            "as_of_date": as_of,
+            "available_at": cutoff,
+            "exists": True,
+            "locator": f"fixture://1475/{as_of}",
+            "source_sha256": suffix * 64,
+            "rights_state": "LOCAL_RESEARCH_ALLOWED",
+        },
+        "identity_source_metadata": {
+            "availability_complete": True,
+            "semantic_source_sha256": "b" * 64,
+            "identity_semantic_sha256": "d" * 64,
+        },
+        "evidence_source_metadata": {
+            "availability_complete": True,
+            "semantic_source_sha256": "c" * 64,
+            "identity_semantic_sha256": "d" * 64,
+        },
+        "market_source_metadata": {
+            role: {"exists": True, "locator": f"fixture://{role}/{period}"}
+            for role in ("start_price", "end_price", "benchmark", "action_detector")
+        },
+    }
+
+
+def test_qualification_cli_freezes_v02_q1_without_performance_inputs(tmp_path: Path) -> None:
+    module = _load_cli_module()
+    inventory = tmp_path / "v02-candidates.json"
+    output = tmp_path / "v02-window.json"
+    inventory.write_text(
+        json.dumps({
+            "artifact_version": "fixture-v0.2",
+            "candidates": [
+                _v02_cli_candidate("2026-01", "2025-12-30T15:30:00+09:00", "2025-12-30", "1"),
+                _v02_cli_candidate("2026-02", "2026-01-30T15:30:00+09:00", "2026-01-30", "2"),
+                _v02_cli_candidate("2026-03", "2026-02-27T15:30:00+09:00", "2026-02-27", "3"),
+            ],
+        }),
+        encoding="utf-8",
+    )
+    result = module.run_qualification(
+        config_path=ROOT / "configs" / "m3-3c0-historical-replay-v0.2.json",
+        candidate_metadata_path=inventory,
+        output_path=output,
+        code_commit="test-v02",
+    )
+    assert result["status"] == "HISTORICAL_REPLAY_WINDOW_FROZEN"
+    assert result["window"] == ["2026-01", "2026-02", "2026-03"]
+    assert result["selection_input_semantics"] == "METADATA_ONLY_NO_RETURNS"
+    serialized = output.read_text(encoding="utf-8").lower()
+    for forbidden in ("benchmark_return", "portfolio_return", "total_wealth_return", "nav"):
+        assert forbidden not in serialized
