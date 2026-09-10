@@ -178,3 +178,127 @@ def test_two_month_bindings_keep_frozen_policy_semantics() -> None:
     assert outputs[0]["manifest"]["policy_sha256"] == outputs[1]["manifest"]["policy_sha256"]
     assert [arm["arm_id"] for arm in outputs[0]["arms"]] == [arm["arm_id"] for arm in outputs[1]["arms"]]
     assert outputs[0]["manifest"]["config_semantic_sha256"] != outputs[1]["manifest"]["config_semantic_sha256"]
+
+
+def test_residual_sleeve_reproduces_p0_when_weights_are_unchanged() -> None:
+    from decimal import Decimal
+    from wa_commons.portfolio.investable_proxy import compute_residual_sleeve_financial
+
+    result = compute_residual_sleeve_financial(
+        p0_total_return=Decimal("0.010000000000"),
+        control_rows=[{
+            "security_id": "TSE:1001",
+            "benchmark_weight": "0.200000000000",
+        }],
+        policy_rows=[{
+            "security_id": "TSE:1001",
+            "benchmark_weight": "0.200000000000",
+            "target_weight": "0.200000000000",
+            "instruction": "UNDERWEIGHT",
+            "multiplier": "0.500000000000",
+        }],
+        changed_returns={"TSE:1001": Decimal("0.020000000000")},
+    )
+    assert result["policy_return"] == "0.010000000000"
+    assert result["residual_return"] == "0.007500000000"
+
+
+def test_residual_sleeve_reweights_only_directly_changed_security() -> None:
+    from decimal import Decimal
+    from wa_commons.portfolio.investable_proxy import compute_residual_sleeve_financial
+    result = compute_residual_sleeve_financial(
+        p0_total_return=Decimal("0.010000000000"),
+        control_rows=[{
+            "security_id": "TSE:1001",
+            "benchmark_weight": "0.200000000000",
+        }],
+        policy_rows=[{
+            "security_id": "TSE:1001",
+            "benchmark_weight": "0.200000000000",
+            "target_weight": "0.100000000000",
+            "instruction": "UNDERWEIGHT",
+            "multiplier": "0.500000000000",
+        }],
+        changed_returns={"TSE:1001": Decimal("0.020000000000")},
+    )
+    assert result["changed_control_weight"] == "0.200000000000"
+    assert result["changed_policy_weight"] == "0.100000000000"
+    assert result["residual_return"] == "0.007500000000"
+    assert result["policy_return"] == "0.008750000000"
+
+
+def test_residual_sleeve_empty_changed_set_returns_p0() -> None:
+    from decimal import Decimal
+    from wa_commons.portfolio.investable_proxy import compute_residual_sleeve_financial
+
+    result = compute_residual_sleeve_financial(
+        p0_total_return=Decimal("0.012345678901"),
+        control_rows=[],
+        policy_rows=[],
+        changed_returns={},
+    )
+    assert result["policy_return"] == "0.012345678901"
+    assert result["changed_security_count"] == 0
+
+
+def test_residual_sleeve_rejects_missing_direct_return() -> None:
+    from decimal import Decimal
+    import pytest
+    from wa_commons.portfolio.investable_proxy import compute_residual_sleeve_financial
+
+    with pytest.raises(ValueError, match="missing changed-security return"):
+        compute_residual_sleeve_financial(
+            p0_total_return=Decimal("0.01"),
+            control_rows=[{"security_id": "TSE:1001", "benchmark_weight": "0.2"}],
+            policy_rows=[{
+                "security_id": "TSE:1001", "benchmark_weight": "0.2",
+                "target_weight": "0.1", "instruction": "UNDERWEIGHT", "multiplier": "0.5",
+            }],
+            changed_returns={},
+        )
+
+
+def test_residual_sleeve_rejects_duplicate_or_exhaustive_changed_weight() -> None:
+    from decimal import Decimal
+    import pytest
+    from wa_commons.portfolio.investable_proxy import compute_residual_sleeve_financial
+
+    duplicate = [
+        {"security_id": "TSE:1001", "benchmark_weight": "0.2", "target_weight": "0.1", "instruction": "UNDERWEIGHT", "multiplier": "0.5"},
+        {"security_id": "TSE:1001", "benchmark_weight": "0.2", "target_weight": "0.1", "instruction": "UNDERWEIGHT", "multiplier": "0.5"},
+    ]
+    with pytest.raises(ValueError, match="duplicate changed security"):
+        compute_residual_sleeve_financial(
+            p0_total_return=Decimal("0.01"),
+            control_rows=duplicate,
+            policy_rows=duplicate,
+            changed_returns={"TSE:1001": Decimal("0.02")},
+        )
+
+    exhaustive = [{
+        "security_id": "TSE:1001", "benchmark_weight": "1.0",
+        "target_weight": "0.5", "instruction": "UNDERWEIGHT", "multiplier": "0.5",
+    }]
+    with pytest.raises(ValueError, match="changed control weight"):
+        compute_residual_sleeve_financial(
+            p0_total_return=Decimal("0.01"),
+            control_rows=exhaustive,
+            policy_rows=exhaustive,
+            changed_returns={"TSE:1001": Decimal("0.02")},
+        )
+
+
+def test_residual_sleeve_rejects_negative_weight() -> None:
+    from decimal import Decimal
+    import pytest
+    from wa_commons.portfolio.investable_proxy import compute_residual_sleeve_financial
+
+    row = [{
+        "security_id": "TSE:1001", "benchmark_weight": "-0.1",
+        "target_weight": "0.1", "instruction": "UNDERWEIGHT", "multiplier": "0.5",
+    }]
+    with pytest.raises(ValueError, match="nonnegative"):
+        compute_residual_sleeve_financial(
+            p0_total_return=Decimal("0.01"), control_rows=row, policy_rows=row,
+            changed_returns={"TSE:1001": Decimal("0.02")},
+        )

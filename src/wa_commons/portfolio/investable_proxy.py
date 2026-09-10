@@ -253,3 +253,107 @@ def directly_changed_security_ids(
                 raise ValueError("direct policy instruction missing security_id")
             changed.add(security_id)
     return sorted(changed)
+
+
+def _residual_decimal(value: object, label: str) -> Decimal:
+    try:
+        number = Decimal(str(value))
+    except Exception as exc:
+        raise ValueError(f"invalid {label}") from exc
+    if not number.is_finite():
+        raise ValueError(f"invalid {label}")
+    return number
+
+
+def _residual_text(value: Decimal) -> str:
+    return format(value.quantize(_WEIGHT_QUANTUM), ".12f")
+
+
+def compute_residual_sleeve_financial(
+    *,
+    p0_total_return: Decimal,
+    control_rows: list[Mapping[str, Any]],
+    policy_rows: list[Mapping[str, Any]],
+    changed_returns: Mapping[str, Decimal],
+) -> dict[str, Any]:
+    p0_return = _residual_decimal(p0_total_return, "P0 total return")
+    policy_index: dict[str, Mapping[str, Any]] = {}
+    changed_ids: list[str] = []
+    for row in policy_rows:
+        security_id = str(row.get("security_id", "")).strip()
+        if not security_id:
+            raise ValueError("policy row missing security_id")
+        if security_id in policy_index:
+            raise ValueError("duplicate changed security")
+        policy_index[security_id] = row
+        multiplier = _residual_decimal(row.get("multiplier", "1"), "multiplier")
+        instruction = str(row.get("instruction", ""))
+        if instruction in {"EXCLUDE", "UNDERWEIGHT"} and multiplier != Decimal("1"):
+            changed_ids.append(security_id)
+
+    if not changed_ids:
+        return {
+            "status": "RESIDUAL_SLEEVE_OK",
+            "changed_security_count": 0,
+            "changed_control_weight": "0.000000000000",
+            "changed_policy_weight": "0.000000000000",
+            "residual_return": _residual_text(p0_return),
+            "policy_return": _residual_text(p0_return),
+        }
+
+    control_index: dict[str, Mapping[str, Any]] = {}
+    for row in control_rows:
+        security_id = str(row.get("security_id", "")).strip()
+        if not security_id:
+            raise ValueError("control row missing security_id")
+        if security_id in control_index:
+            raise ValueError("duplicate changed security")
+        control_index[security_id] = row
+
+    changed_control_weight = Decimal("0")
+    changed_policy_weight = Decimal("0")
+    control_changed_return = Decimal("0")
+    policy_changed_return = Decimal("0")
+    for security_id in sorted(changed_ids):
+        control = control_index.get(security_id)
+        if control is None:
+            raise ValueError(f"missing control row for changed security: {security_id}")
+        policy = policy_index[security_id]
+        if security_id not in changed_returns:
+            raise ValueError(f"missing changed-security return: {security_id}")
+        benchmark_weight = _residual_decimal(
+            control.get("benchmark_weight"), "benchmark weight"
+        )
+        target_weight = _residual_decimal(
+            policy.get("target_weight"), "target weight"
+        )
+        security_return = _residual_decimal(
+            changed_returns[security_id], "changed-security return"
+        )
+        if benchmark_weight < 0 or target_weight < 0:
+            raise ValueError("residual-sleeve weights must be nonnegative")
+        changed_control_weight += benchmark_weight
+        changed_policy_weight += target_weight
+        control_changed_return += benchmark_weight * security_return
+        policy_changed_return += target_weight * security_return
+
+    if changed_control_weight >= Decimal("1"):
+        raise ValueError("changed control weight must be less than 1")
+    if changed_policy_weight > Decimal("1"):
+        raise ValueError("changed policy weight must not exceed 1")
+
+    residual_return = (
+        p0_return - control_changed_return
+    ) / (Decimal("1") - changed_control_weight)
+    policy_return = (
+        policy_changed_return
+        + (Decimal("1") - changed_policy_weight) * residual_return
+    )
+    return {
+        "status": "RESIDUAL_SLEEVE_OK",
+        "changed_security_count": len(changed_ids),
+        "changed_control_weight": _residual_text(changed_control_weight),
+        "changed_policy_weight": _residual_text(changed_policy_weight),
+        "residual_return": _residual_text(residual_return),
+        "policy_return": _residual_text(policy_return),
+    }
