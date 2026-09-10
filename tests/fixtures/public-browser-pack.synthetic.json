@@ -1,0 +1,91 @@
+{
+  "manifest": {
+    "pack_version": "wa-public-evidence-pack-v0.1",
+    "generated_at": "2026-09-11T00:00:00Z",
+    "release_state": "READY_FOR_CAPABILITY_TEST",
+    "pack_semantic_sha256": "synthetic"
+  },
+  "topics": {
+    "military_defence": {
+      "state": "AVAILABLE",
+      "reason": "PUBLIC_FIELDS_ALLOWED",
+      "source_id": "jp-mod-procurement"
+    },
+    "ohchr_settlement_related": {
+      "state": "NOT_INTEGRATED",
+      "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
+      "source_id": "ohchr-settlements-business"
+    }
+  },
+  "companies": [
+    {
+      "entity_id": "jp:corporate-number:1111111111111",
+      "corporate_number": "1111111111111",
+      "canonical_name": "合成株式会社",
+      "security_code": "1001",
+      "edinet_code": "E00001",
+      "identity_state": "CONFIRMED",
+      "aliases": ["合成"],
+      "topics": {
+        "military_defence": {
+          "state": "OBSERVED",
+          "reason": "COVERAGE_MATRIX",
+          "source_id": "jp-mod-procurement"
+        },
+        "ohchr_settlement_related": {
+          "state": "NOT_INTEGRATED",
+          "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
+          "source_id": "ohchr-settlements-business"
+        }
+      },
+      "policy_views": [
+        {
+          "profile_id": "public:strict-military-specific:v1",
+          "profile_version": "1",
+          "policy_sha256": "synthetic",
+          "decision": "EXCLUDE",
+          "claim_results": [{"claim_id": "claim-mod-1", "decision": "EXCLUDE"}],
+          "reasoning": "Synthetic fixture only."
+        }
+      ],
+      "evidence": [
+        {
+          "claim_id": "claim-mod-1",
+          "narrow_claim": {
+            "category": "military_contract",
+            "predicate": "contract_subject_classification",
+            "value": {"classification": "military_specific"}
+          },
+          "adjudication": {"status": "CONFIRMED", "confidence": 0.99},
+          "entity_resolution_state": "confirmed",
+          "sources": [
+            {
+              "source_id": "jp-mod-procurement",
+              "publisher": "Japan Ministry of Defense",
+              "url": "https://example.invalid/mod",
+              "locator": "synthetic-record",
+              "evidence_date": "2026-04-01",
+              "retrieved_at": "2026-09-01T00:00:00Z"
+            }
+          ],
+          "challenge_url": "https://github.com/kazuma-democracy/wa-commons/issues/new"
+        }
+      ]
+    },
+    {
+      "entity_id": "jp:corporate-number:2222222222222",
+      "corporate_number": "2222222222222",
+      "canonical_name": "合成電機株式会社",
+      "security_code": "2002",
+      "edinet_code": "E00002",
+      "identity_state": "CONFIRMED",
+      "aliases": [],
+      "topics": {
+        "military_defence": {"state": "NO_MATCH", "reason": "COVERAGE_MATRIX", "source_id": "jp-mod-procurement"},
+        "ohchr_settlement_related": {"state": "NOT_INTEGRATED", "reason": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED", "source_id": "ohchr-settlements-business"}
+      },
+      "policy_views": [],
+      "evidence": []
+    }
+  ]
+}
