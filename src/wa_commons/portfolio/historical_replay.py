@@ -548,3 +548,77 @@ def run_frozen_replay(
         **semantic_payload,
         "semantic_payload_sha256": _canonical_sha256(semantic_payload),
     }
+
+
+def _valid_sha256_text(value: object) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value) is not None
+
+
+def verify_frozen_target_manifest(
+    window_manifest: Mapping[str, Any],
+    target_manifest: Mapping[str, Any],
+) -> str | None:
+    if window_manifest.get("status") != "HISTORICAL_REPLAY_WINDOW_FROZEN":
+        return "BLOCK_REPRODUCIBILITY"
+    if target_manifest.get("status") != "HISTORICAL_REPLAY_TARGETS_FROZEN":
+        return "BLOCK_REPRODUCIBILITY"
+    if _contains_performance_fields(target_manifest):
+        return "BLOCK_REPRODUCIBILITY"
+
+    window = list(window_manifest.get("window", []))
+    if len(window) != 3 or list(target_manifest.get("window", [])) != window:
+        return "BLOCK_REPRODUCIBILITY"
+    window_sha = window_manifest.get("window_semantic_sha256")
+    if not _valid_sha256_text(window_sha):
+        return "BLOCK_REPRODUCIBILITY"
+    if target_manifest.get("window_semantic_sha256") != window_sha:
+        return "BLOCK_REPRODUCIBILITY"
+
+    policy_semantics = target_manifest.get("policy_semantics")
+    policy_semantics_sha = target_manifest.get("policy_semantics_sha256")
+    if not isinstance(policy_semantics, Mapping):
+        return "BLOCK_REPRODUCIBILITY"
+    if not _valid_sha256_text(policy_semantics_sha):
+        return "BLOCK_REPRODUCIBILITY"
+    if policy_semantics_sha != _canonical_sha256(policy_semantics):
+        return "BLOCK_REPRODUCIBILITY"
+
+    months = target_manifest.get("months")
+    if not isinstance(months, list) or len(months) != 3:
+        return "BLOCK_REPRODUCIBILITY"
+    by_period: dict[str, Mapping[str, Any]] = {}
+    required_hashes = (
+        "control_snapshot_sha256",
+        "control_mapping_sha256",
+        "identity_semantic_sha256",
+        "screening_sha256",
+        "evidence_provenance_sha256",
+        "policy_family_sha256",
+        "policy_payload_sha256",
+        "policy_semantics_sha256",
+    )
+    for month in months:
+        if not isinstance(month, Mapping):
+            return "BLOCK_REPRODUCIBILITY"
+        period = str(month.get("period", ""))
+        if period in by_period or period not in window:
+            return "BLOCK_REPRODUCIBILITY"
+        by_period[period] = month
+        if any(not _valid_sha256_text(month.get(key)) for key in required_hashes):
+            return "BLOCK_REPRODUCIBILITY"
+        if month.get("policy_semantics_sha256") != policy_semantics_sha:
+            return "BLOCK_REPRODUCIBILITY"
+        changed = month.get("direct_changed_security_ids")
+        if not isinstance(changed, Mapping):
+            return "BLOCK_REPRODUCIBILITY"
+        for arm_id in ("P1", "P2"):
+            values = changed.get(arm_id)
+            if not isinstance(values, list):
+                return "BLOCK_REPRODUCIBILITY"
+            normalized = [str(value) for value in values]
+            if normalized != sorted(set(normalized)):
+                return "BLOCK_REPRODUCIBILITY"
+
+    if set(by_period) != set(window):
+        return "BLOCK_REPRODUCIBILITY"
+    return None
