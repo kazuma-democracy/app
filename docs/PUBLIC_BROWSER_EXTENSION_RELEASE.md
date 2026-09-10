@@ -10,7 +10,7 @@ Current v0.1 release scope:
 - optional topic: `ohchr_settlement_related`
 - allowed optional release state: `NOT_INTEGRATED`
 
-OHCHR is optional for v0.1 release. Its current rights state remains `BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED / ohchr-settlements-business`, so no OHCHR company rows may be ingested or distributed and the UI must continue to show `NOT_INTEGRATED`. This unresolved permission no longer blocks a military-first v0.1 store submission.
+OHCHR is optional for v0.1 release. Its current rights state remains `BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED / ohchr-settlements-business`, so no OHCHR company rows may be ingested or distributed. The `NOT_INTEGRATED` state remains in the evidence/release model for auditability, but the unfinished OHCHR feature is hidden from the v0.1 user interface. This unresolved permission no longer blocks a military-first v0.1 store submission.
 
 Before any store action below, perform a **fresh official store-policy check** and record the date and relevant requirement. Do not rely on this document as permanent store-policy authority.
 
@@ -27,7 +27,7 @@ Before manual browser certification:
 7. Confirm `NONE` remains visibly described as not PASS/clean/safe.
 8. Confirm manual search is the identity-critical path and page hints only produce candidates.
 9. Record package SHA-256 before loading or uploading it.
-10. Confirm `military_defence` is release-ready and the optional OHCHR topic still renders `NOT_INTEGRATED` while its rights state is blocked.
+10. Confirm `military_defence` is release-ready, OHCHR remains internally `NOT_INTEGRATED`, and all unfinished OHCHR controls/cards are hidden from the v0.1 user interface.
 
 ## Chrome
 
@@ -43,7 +43,7 @@ Manual capability certification:
    - source/provenance is visible;
    - policy result is precomputed;
    - `NONE` warning is visible when applicable;
-   - blocked OHCHR topic displays `NOT_INTEGRATED`;
+   - unfinished OHCHR controls/cards are absent from the v0.1 UI;
    - correction/challenge link is present.
 6. Test the page-hint button:
    - it runs only after the click;
@@ -133,7 +133,7 @@ For each browser, record separately:
 - ambiguous-name candidate-selection PASS/FAIL;
 - Evidence/provenance rendering PASS/FAIL;
 - `NONE` warning PASS/FAIL;
-- OHCHR `NOT_INTEGRATED` rendering PASS/FAIL while blocked;
+- unfinished OHCHR controls/cards hidden PASS/FAIL while internally `NOT_INTEGRATED`;
 - page-hint privacy/identity-boundary PASS/FAIL;
 - official store-policy check date;
 - store validation status;

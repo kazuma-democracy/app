@@ -65,7 +65,57 @@ def test_ui_copy_has_no_universal_moral_or_boycott_score():
     assert all(token.lower() not in lowered for token in forbidden)
 
 
+def test_v01_ui_hides_not_integrated_ohchr_feature():
+    js = _read("popup.mjs")
+    assert "public:ohchr-settlement-avoidance:v1" not in js
+    assert "public:military-and-settlement:v1" not in js
+    assert 'new Set(["military_defence"])' in js
+    assert 'new Set(["military_contract"])' in js
+    locale = (COMMON / "_locales/ja/messages.json").read_text(encoding="utf-8")
+    assert "profileSettlement" not in locale
+    assert "profileBoth" not in locale
+    assert "settlementTopic" not in locale
+    assert "OHCHR" not in locale
+    listing = (ROOT / "docs/store/PUBLIC_BROWSER_EXTENSION_LISTING_JA.md").read_text(
+        encoding="utf-8"
+    )
+    assert "OHCHR" not in listing
+    assert "入植地" not in listing
+
+
 def test_common_data_directory_does_not_commit_real_pack():
     data_dir = COMMON / "data"
     assert (data_dir / "README.md").exists()
     assert not (data_dir / "wa-public-evidence-pack.json").exists()
+
+
+def _png_dimensions(path: Path) -> tuple[int, int]:
+    raw = path.read_bytes()
+    assert raw[:8] == b"\x89PNG\r\n\x1a\n"
+    return (
+        int.from_bytes(raw[16:20], "big"),
+        int.from_bytes(raw[20:24], "big"),
+    )
+
+
+def test_manifest_declares_store_ready_png_icons():
+    manifest = json.loads(_read("manifest.base.json"))
+    expected = {
+        "16": "icons/wa-16.png",
+        "32": "icons/wa-32.png",
+        "48": "icons/wa-48.png",
+        "128": "icons/wa-128.png",
+    }
+    assert manifest["icons"] == expected
+    assert manifest["action"]["default_icon"] == expected
+    for size, rel in expected.items():
+        assert _png_dimensions(COMMON / rel) == (int(size), int(size))
+
+
+def test_store_assets_and_privacy_policy_exist():
+    store = ROOT / "store-assets/browser-extension"
+    assert _png_dimensions(store / "logo-300x300.png") == (300, 300)
+    assert _png_dimensions(store / "small-promo-440x280.png") == (440, 280)
+    assert _png_dimensions(store / "screenshot-1280x800.png") == (1280, 800)
+    assert (ROOT / "docs/PUBLIC_BROWSER_EXTENSION_PRIVACY.md").exists()
+    assert (ROOT / "docs/store/PUBLIC_BROWSER_EXTENSION_LISTING_JA.md").exists()

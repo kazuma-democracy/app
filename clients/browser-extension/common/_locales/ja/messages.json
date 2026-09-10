@@ -26,12 +26,6 @@
   "profileMilitary": {
     "message": "軍事specificを避ける"
   },
-  "profileSettlement": {
-    "message": "OHCHR入植地関連を避ける"
-  },
-  "profileBoth": {
-    "message": "軍事specific・OHCHR入植地関連を避ける"
-  },
   "noResults": {
     "message": "候補が見つかりませんでした。"
   },
@@ -52,9 +46,6 @@
   },
   "militaryTopic": {
     "message": "軍事・防衛関連Evidence"
-  },
-  "settlementTopic": {
-    "message": "OHCHR入植地関連Evidence"
   },
   "evidenceLabel": {
     "message": "Evidence"
