@@ -11,6 +11,16 @@
     "military_defence",
     "ohchr_settlement_related"
   ],
+  "required_public_topics": [
+    "military_defence"
+  ],
+  "optional_public_topics": [
+    "ohchr_settlement_related"
+  ],
+  "release_requires_all_required_topics_ready": true,
+  "optional_topic_states_allowed_at_release": [
+    "NOT_INTEGRATED"
+  ],
   "permissions": {
     "forbidden": [
       "<all_urls>",
@@ -30,6 +40,5 @@
   "source_rights_contract": "configs/public-client-sources-v0.1.json",
   "preserved_issue": 85,
   "evidence_pack_mode": "bundled_release_asset",
-  "release_requires_all_public_topics_ready": true,
   "public_release_authority": "human_only"
 }

@@ -67,8 +67,11 @@ The information-only profile intentionally has no consequential rule. The OHCHR-
 
 Capability: **CAPABILITY_READY**
 
-Public release: **BLOCKED**
-Blocker: **BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED / ohchr-settlements-business**
+Release scope: STORE_SUBMISSION_READY
+Required v0.1 topic: military_defence = AVAILABLE
+Optional v0.1 topic: ohchr_settlement_related = NOT_INTEGRATED
+OHCHR is optional for v0.1 release; its unresolved reuse permission remains visible and blocks only that topic.
+OHCHR rights state: BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED / ohchr-settlements-business
 Israel/OPT topic: NOT_INTEGRATED
 
 This report does not claim that no relevant OHCHR evidence exists for any company.
@@ -135,6 +138,6 @@ The full suite was run once after the Task 9 capability files were present. This
 
 **Not released.**
 
-Store submission is a separate external side effect and requires explicit human approval. Current project configuration also requires all configured public topics to be ready; therefore the unresolved OHCHR public-reuse permission blocks store release under the current #91 scope.
+Store submission is a separate external side effect and requires explicit human approval. The approved v0.1 release scope requires `military_defence` to be ready and allows the optional `ohchr_settlement_related` topic to remain visibly `NOT_INTEGRATED`. The OHCHR reuse question is not waived or converted into a negative finding.
 
-No Chrome Web Store, Microsoft Edge Add-ons, addons.mozilla.org, or Apple App Store submission has been performed by this result.
+No Chrome Web Store, Microsoft Edge Add-ons, addons.mozilla.org, or Apple App Store submission has been performed by this result yet.

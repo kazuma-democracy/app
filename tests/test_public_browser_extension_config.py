@@ -10,6 +10,11 @@ def test_m25_extension_config_freezes_scope():
     assert cfg["artifact_version"] == "m2-5-public-browser-extension-v0.1"
     assert cfg["browsers"] == ["chrome", "edge", "firefox", "safari"]
     assert cfg["public_topics"] == ["military_defence", "ohchr_settlement_related"]
+    assert cfg["required_public_topics"] == ["military_defence"]
+    assert cfg["optional_public_topics"] == ["ohchr_settlement_related"]
+    assert cfg["release_requires_all_required_topics_ready"] is True
+    assert cfg["optional_topic_states_allowed_at_release"] == ["NOT_INTEGRATED"]
+    assert "release_requires_all_public_topics_ready" not in cfg
     assert cfg["permissions"]["forbidden"] == [
         "<all_urls>", "history", "cookies", "webRequest", "nativeMessaging"
     ]
