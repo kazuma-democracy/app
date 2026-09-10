@@ -27,7 +27,7 @@ Research on 2026-09-10 found a better prospective route:
 
 - the official 1306 product page publishes dated setting portfolios for future/current application dates;
 - multiple same-date portfolios correspond to different provisional unit sizes rather than revision versions;
-- the raw portfolio can be captured locally before the decision cutoff, hashed, and independently timestamped without publishing the raw file;
+- the raw portfolio can be captured locally before the decision cutoff, hashed, and externally time-evidenced without publishing the raw file;
 - the method can therefore create its own future point-in-time availability evidence instead of trying to reconstruct an unprovable historical publication timestamp.
 
 ## 3. Source role and factual scope
@@ -94,24 +94,30 @@ A prospective source capture must record at minimum:
 - HTTP status/content-type where useful to detect source drift;
 - raw-local path outside the public repository;
 - source-rights state;
-- timestamp-proof state.
+- acquisition-manifest commit SHA and commit timestamp;
+- optional OpenTimestamps proof state.
 
-Qualification requires an observed retrieval timestamp at or before the decision cutoff. Server metadata may strengthen the proof but does not replace actual retrieval evidence.
+Qualification requires both:
 
-## 7. External timestamp proof
+1. the observed source retrieval timestamp is at or before the decision cutoff; and
+2. a repo-safe acquisition manifest containing the locator + exact raw-byte SHA-256 is committed to GitHub at or before the decision cutoff.
 
-Use OpenTimestamps as an independent hash-only timestamp layer when operational.
+The public Git commit is the required independent time evidence for v0.3. HTTP server metadata strengthens the provenance when exposed but does not replace the observed retrieval event. If the manifest is first committed after the cutoff, the month fails closed even when the local file claims an earlier retrieval time.
 
-Contract:
+A later verification must re-hash the preserved local raw file and obtain the same SHA-256 frozen in the pre-cutoff manifest.
 
-- timestamp the SHA-256 digest / exact local source bytes without publishing the raw 1306 CSV in the repository;
+## 7. OpenTimestamps role
+
+OpenTimestamps is **strengthening evidence, not a required gate** for v0.3.
+
+When operational:
+
+- timestamp the exact raw-file digest without publishing the raw 1306 CSV;
 - preserve the `.ots` proof locally or in a repo-safe form if it contains no restricted source rows;
-- verify that the timestamp proof binds to the exact raw-file digest;
-- treat the OpenTimestamps anchor as supporting evidence that the digest existed no later than the independently established anchor time;
-- do not treat OpenTimestamps as proof that Nomura itself published the file at that time;
-- cutoff qualification still requires the recorded source retrieval event before the cutoff.
+- verify that the proof binds to the exact raw-file digest;
+- never treat OpenTimestamps as proof that Nomura itself published the file at a particular time.
 
-OpenTimestamps failure alone does not automatically invalidate a capture if the adopted v0.3 acceptance later defines sufficient independent observed acquisition evidence without it. The implementation plan must decide whether timestamp proof is `required` or `strengthening` before the first headline capture. It must not be changed after observing replay performance.
+A failed or delayed OpenTimestamps anchor does not invalidate an otherwise valid capture because the required independent cutoff proof is the pre-cutoff public Git acquisition-manifest commit. This rule is fixed now, before any headline replay return is observed.
 
 ## 8. Rights and storage boundary
 
@@ -171,6 +177,8 @@ source_locator
 source_sha256
 source_bytes
 rights_state
+acquisition_manifest_commit_sha
+acquisition_manifest_committed_at
 timestamp_proof_state
 semantic_snapshot_sha256
 ```
@@ -183,9 +191,7 @@ The adapter must not invent market value from the source and must not inspect re
 
 1306 setting portfolios publish share quantities rather than final benchmark weights.
 
-The control-weight calculation must be fixed before headline execution.
-
-Recommended v0.3 rule:
+The v0.3 control-weight rule is fixed as:
 
 ```text
 raw_value_i = setting_shares_i * cutoff_valuation_price_i
@@ -194,7 +200,7 @@ control_weight_i = raw_value_i / sum(raw_value_j)
 
 Requirements:
 
-- cutoff valuation prices must come from the already adopted monthly-market / point-in-time price source contract;
+- cutoff valuation prices come from the already adopted monthly-market / point-in-time price source contract;
 - price dates must not exceed the decision cutoff;
 - missing required price or unresolved corporate action fails closed;
 - no return value from the evaluation month enters the calculation;
@@ -224,25 +230,28 @@ Under the existing period semantics, these use decision cutoffs at the preceding
 
 This does not repurpose the October holdout. The October holdout remains the independently preregistered 2026-10-01 through 2026-10-30 realized interval with its existing portfolio definition and return contract.
 
-The 1306 method itself must be versioned and frozen before October performance can be used to alter it.
+The 1306 method itself must be versioned and merged before October performance can be used to alter it.
 
-## 13. Window freeze and no-selection-leakage rules
+## 13. Capture and freeze order
 
-Before any evaluation-period candidate return, benchmark return, or financial result is loaded:
+For each prospective cutoff:
 
-1. the v0.3 source/selection/weight semantics are fixed;
-2. the exact candidate window is written;
-3. each source capture passes metadata/cutoff qualification;
-4. the window manifest is hashed;
-5. P0/P1/P2 target weights are frozen for all three months.
-
-Only after those gates may the market evaluation path load the following-month returns.
+1. discover only the official same-date setting-portfolio metadata necessary to identify candidate files and provisional-unit sizes;
+2. select the largest published provisional-unit file by the preregistered semantic rule;
+3. retrieve raw bytes locally before the cutoff;
+4. compute SHA-256 and write the repo-safe acquisition manifest;
+5. commit that acquisition manifest to GitHub before the cutoff;
+6. preserve raw bytes locally and optionally create OpenTimestamps proof;
+7. run candidate metadata qualification without evaluation-month performance values;
+8. when all three candidate months are qualified, write/hash the exact replay-window manifest;
+9. freeze P0/P1/P2 target weights for all three months;
+10. only then load the following-month market/benchmark return payloads.
 
 If one of the three months blocks after the method is frozen, preserve the block as a result. Do not slide the window forward or backward based on observed financial outcomes.
 
 ## 14. Required states
 
-Reuse existing states and add source-specific blockers only where they improve diagnostics without weakening semantics.
+Reuse existing states and add source-specific blocker reasons only where they improve diagnostics without weakening semantics.
 
 At minimum:
 
@@ -265,6 +274,7 @@ Recommended blocker reasons:
 - `CONTROL_PROVISIONAL_UNITS_UNRESOLVED`
 - `CONTROL_MAX_UNIT_SELECTION_AMBIGUOUS`
 - `CONTROL_SOURCE_HASH_MISMATCH`
+- `CONTROL_ACQUISITION_MANIFEST_AFTER_CUTOFF`
 - `CONTROL_TIMESTAMP_PROOF_INVALID`
 
 No missing source state becomes a clean/pass state.
@@ -279,8 +289,9 @@ Focused tests must cover at least:
 - duplicate maximum size blocks if ambiguous;
 - application-date mismatch blocks;
 - missing/after-cutoff `retrieved_at` blocks;
+- missing/after-cutoff acquisition-manifest commit blocks;
 - raw-file SHA mismatch blocks;
-- timestamp proof binds to the expected digest when enabled;
+- OpenTimestamps verification can strengthen but cannot replace the required Git commit gate;
 - source-rights mismatch blocks;
 - current v0.2 1475 qualification behavior remains unchanged;
 - preselection/performance-field guards still block leakage;
@@ -309,6 +320,8 @@ This design is ready for implementation planning only if all are accepted:
 - 1306 is explicitly a prospective investable control, not official TOPIX weights;
 - source selection is fixed semantically as largest published provisional-unit portfolio for the cutoff application date;
 - actual retrieval before cutoff is mandatory;
+- the locator + exact source SHA-256 acquisition manifest must be publicly Git-committed before cutoff;
+- OpenTimestamps is optional strengthening evidence, not the sole cutoff proof;
 - raw bytes remain local-only and GitHub stores only repo-safe provenance/hash artifacts;
 - v0.2 is extended rather than silently rewritten;
 - weight construction uses only point-in-time cutoff inputs and is frozen before returns;
