@@ -10,11 +10,11 @@ Build useful, voluntary software where repeated use can create a measurable peac
 
 The first proof vehicle is **Experiment 001 — Peace Capital**.
 
-## Current position — 2026-09-09
+## Current position — 2026-09-10
 
 - **M1 — Reproducible Evidence Graph: COMPLETE.** Measured clean reproduction is recorded in `docs/M1_ACCEPTANCE.md`.
 - **M2 — Explainable company screener: COMPLETE.** #42 coverage, #43 deterministic company screening and #44 static explainability report are complete. Measured #44 acceptance is recorded in `docs/results/M2_2C_EXPLAINABLE_SCREENER_V01.md`; `NONE` remains explicitly distinct from PASS/clean/safe.
-- **M3 - Peace Capital paper portfolio: IN PROGRESS.** The Evidence/identity/screening, benchmark mapping, constructor foundation and zero-cost monthly evaluation contract are complete. Policy Compiler (#84) and reusable monthly market primitives (#56) are complete. The current bounded task is **#85 leak-safe Historical Replay — BLOCKED / POINT_IN_TIME_DATA_COVERAGE**. The capability is implemented, but no real three-month window can be frozen until three consecutive cutoff-valid point-in-time benchmark/screening inputs exist. #51 remains not-current.
+- **M3 - Peace Capital paper portfolio: IN PROGRESS.** The Evidence/identity/screening, benchmark mapping, constructor foundation and zero-cost monthly evaluation contract are complete. Policy Compiler (#84) and reusable monthly market primitives (#56) are complete. The current bounded task is **#85 leak-safe Historical Replay — BLOCKED / Q1_SELECTION_INTEGRITY_AND_CONTROL_AVAILABILITY**. The v0.2 investable-proxy capability is implemented, but the preregistered 2026-Q1 window cannot freeze: preselection holdings Market Value/Weight inspection contaminated Q1, and an independent metadata-only audit cannot prove the original 1475 holdings publication time at the three decision cutoffs. No Q1 return was loaded. #51 remains not-current.
 - **Phase 5–6 future design:** a Purchase Route Router is preregistered as the first second-domain candidate. The current product strategy is **distribution-first / integration-first**: begin where users already browse or compare products, use thin browser/share/URL handoffs to invoke WA Commons, test books first, then electronics/PC parts, and treat standalone WA product search as an optional later client rather than the MVP acquisition surface. The first public purchasing experiment is also **local-first / serverless-friendly / ship-small**: core routing should not require an always-on WA Commons application server, v0 is affiliate-free, bounded retailer coverage is acceptable when explicit, and the first release should expose documented contribution paths so verified coverage can grow as a commons. See `docs/PURCHASE_ROUTER_PROPOSAL.md`. This is future design only and does not displace current M3 work or waive Phase 5/6 gates.
 - **Phase 0 governance cleanup remains open.** #8 ideological-bias red-team and #9 Japanese/English terminology review are still required and are not considered completed by later technical progress.
 
@@ -206,12 +206,12 @@ The existing L2 constructor remains reusable financial-fidelity infrastructure. 
 
 P1 may honestly return `POLICY_TRANSMISSION_ZERO`. P2 uses the preregistered `WATCH -> 0.5x` user-policy instruction without treating it as a universal company score.
 
-### Workstream 3F - Free monthly market primitives and leak-safe Historical Replay - BLOCKED / POINT_IN_TIME_DATA_COVERAGE
+### Workstream 3F - Free monthly market primitives and leak-safe Historical Replay - BLOCKED / Q1_SELECTION_INTEGRITY_AND_CONTROL_AVAILABILITY
 **#78 - M3.3c0:** completed - zero-purchase/monthly/fail-closed source, rights and return contract. October 2026 remains the true future holdout.
 
 **#56 - M3.3c:** completed - reusable month-parameterized JPX price/benchmark-return/corporate-action primitives are validated against official June/July 2026 JPX files with deterministic, fail-closed behavior. Raw source rows remain local-only. See `docs/results/M3_3C_MONTHLY_MARKET_PRIMITIVES_V01.md`.
 
-**#85 - M3.3c0 replay:** BLOCKED / POINT_IN_TIME_DATA_COVERAGE - metadata-only qualification, freeze, and frozen-window replay capability are implemented. Current real inputs cannot freeze three consecutive eligible months; current constituents/evidence may never be projected backward.
+**#85 - M3.3c0 replay:** BLOCKED / Q1_SELECTION_INTEGRITY_AND_CONTROL_AVAILABILITY - v0.2 adds a dated 1475 investable-control path, cutoff-safe historical identity/evidence reconstruction, pre-return target freeze, residual-sleeve financial calculation and frozen execution. The real 2026-Q1 gate remains closed: Q1 is durably disqualified by preselection Market Value/Weight inspection, and the original 1475 holdings availability time cannot independently be proven at the three decision cutoffs. Returns were not loaded; no alternate month is substituted. See `docs/results/M3_3C0_HISTORICAL_REPLAY_V02.md`.
 
 After the three-month replay is GREEN, extend the identical frozen method to 12 months and optionally 24 months if point-in-time reconstruction remains reproducible and affordable.
 
@@ -569,7 +569,7 @@ Financial foundation:
         ->
 #56 reusable free-monthly market-return/corporate-action primitives - COMPLETE
         ->
-#85 leak-safe three-month Historical Replay - BLOCKED / POINT_IN_TIME_DATA_COVERAGE
+#85 leak-safe three-month Historical Replay - BLOCKED / Q1_SELECTION_INTEGRITY_AND_CONTROL_AVAILABILITY
         ->
 #51 integrated policy-family evaluation
         ->

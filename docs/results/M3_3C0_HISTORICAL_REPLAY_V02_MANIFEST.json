@@ -1,0 +1,134 @@
+{
+  "artifact_version": "m3.3c0-historical-replay-v0.2-real-gate-v0.1",
+  "blockers": [
+    "PRESELECTION_MARKET_VALUE_INSPECTION",
+    "CONTROL_AVAILABILITY_UNVERIFIED"
+  ],
+  "candidate_results": [
+    {
+      "blockers": [
+        "PRESELECTION_MARKET_VALUE_INSPECTION"
+      ],
+      "decision_cutoff": "2025-12-30T15:30:00+09:00",
+      "evaluation_period": "2026-01",
+      "status": "BLOCK_REPRODUCIBILITY"
+    },
+    {
+      "blockers": [
+        "PRESELECTION_MARKET_VALUE_INSPECTION"
+      ],
+      "decision_cutoff": "2026-01-30T15:30:00+09:00",
+      "evaluation_period": "2026-02",
+      "status": "BLOCK_REPRODUCIBILITY"
+    },
+    {
+      "blockers": [
+        "PRESELECTION_MARKET_VALUE_INSPECTION"
+      ],
+      "decision_cutoff": "2026-02-27T15:30:00+09:00",
+      "evaluation_period": "2026-03",
+      "status": "BLOCK_REPRODUCIBILITY"
+    }
+  ],
+  "code_commit": "c6659992978cbda3d2c88cc162d4ce10db6d84c9",
+  "control_source": {
+    "current_http_etag_present": false,
+    "current_http_last_modified_present": false,
+    "holdings_page_url": "https://www.blackrock.com/jp/individual/ja/products/279438/i-topix-etf-fund",
+    "original_availability_state": "UNVERIFIED",
+    "rights_checked_date": "2026-09-10",
+    "rights_state": "LOCAL_RESEARCH_ALLOWED_RAW_LOCAL_ONLY",
+    "role": "INVESTABLE_POINT_IN_TIME_CONTROL_NOT_OFFICIAL_TOPIX_WEIGHTS",
+    "security_id": "TSE:1475",
+    "snapshots": [
+      {
+        "as_of_date": "2025-12-30",
+        "bytes": 282515,
+        "sha256": "0439193b28b6dc0979f702b5687d55f6e77d84ec725fc40aaac89465143d2088"
+      },
+      {
+        "as_of_date": "2026-01-30",
+        "bytes": 282836,
+        "sha256": "5f329964c306363edbf99912d93e62b369c139a524b41aa6be48112228019632"
+      },
+      {
+        "as_of_date": "2026-02-27",
+        "bytes": 282268,
+        "sha256": "5ac5c6917c33017f66b1b8cc9e91ae71b7c6bacdaabbf7ee2df6685573261c91"
+      }
+    ],
+    "source_id": "blackrock-ishares-1475-holdings",
+    "terms_url": "https://www.blackrock.com/jp/individual/ja/about-us/important-information/terms-and-conditions",
+    "web_archive_capture_found_for_q1_dated_csv": false
+  },
+  "engineering_validation_periods": [
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07",
+    "2026-08"
+  ],
+  "external_benchmark": {
+    "benchmark_id": "JPX:TOPIX_TOTAL_RETURN:6000",
+    "return_values_loaded": false,
+    "role": "EXTERNAL_BENCHMARK_ONLY"
+  },
+  "financial_values_published": false,
+  "future_holdout_periods": [
+    "2026-10"
+  ],
+  "headline_candidate_periods": [
+    "2026-01",
+    "2026-02",
+    "2026-03"
+  ],
+  "independent_availability_audit": [
+    {
+      "blockers": [
+        "CONTROL_AVAILABILITY_UNVERIFIED"
+      ],
+      "decision_cutoff": "2025-12-30T15:30:00+09:00",
+      "evaluation_period": "2026-01",
+      "status": "BLOCK_EVIDENCE_CUTOFF"
+    },
+    {
+      "blockers": [
+        "CONTROL_AVAILABILITY_UNVERIFIED"
+      ],
+      "decision_cutoff": "2026-01-30T15:30:00+09:00",
+      "evaluation_period": "2026-02",
+      "status": "BLOCK_EVIDENCE_CUTOFF"
+    },
+    {
+      "blockers": [
+        "CONTROL_AVAILABILITY_UNVERIFIED"
+      ],
+      "decision_cutoff": "2026-02-27T15:30:00+09:00",
+      "evaluation_period": "2026-03",
+      "status": "BLOCK_EVIDENCE_CUTOFF"
+    }
+  ],
+  "issue": 85,
+  "local_input_hashes": {
+    "availability_audit_sha256": "2fec9cc2daf70289ec77ddaa054c21036dd64730996b63379a04ffd94ab843bb",
+    "candidate_inventory_sha256": "7deeab63effb11ba20a9e7fa5512a82d1c5077c3a1ce6cc4a8e4f13f85565998",
+    "config_sha256": "6d5c6507219777931fb4ce1ceaac0f29f8ad39a45c06310e55bf5aed39a9ba81",
+    "qualification_output_sha256": "7117b6f80489f20fb59daa9b7b0043e0f2e5e08948a2652c1c20e741f5d538b8"
+  },
+  "raw_third_party_rows_committed": false,
+  "selection_input_semantics": "METADATA_ONLY_NO_RETURNS",
+  "selection_integrity": {
+    "contaminated_periods": [
+      "2026-01",
+      "2026-02",
+      "2026-03"
+    ],
+    "market_data_stage_entered": false,
+    "pre_return_targets_frozen": false,
+    "preselection_market_value_inspection_detected": true,
+    "returns_loaded": false
+  },
+  "semantic_payload_sha256": "14eb30b5fab8ae58767470b977fb3fca7bcfd195d195da759fb0c3c2e81ba12a",
+  "status": "BLOCK_HISTORICAL_REPLAY_COVERAGE",
+  "window": []
+}
