@@ -4,11 +4,13 @@ Issue: #91
 
 This runbook separates **capability validation** from **store publication**. CI and package generation do not publish anything.
 
-Current release blocker:
+Current v0.1 release scope:
 
-`BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED / ohchr-settlements-business`
+- required topic: `military_defence`
+- optional topic: `ohchr_settlement_related`
+- allowed optional release state: `NOT_INTEGRATED`
 
-Under `configs/m2-5-public-browser-extension-v0.1.json`, all configured public topics must be ready before public release. Therefore store submission remains blocked until the OHCHR reuse state changes through reviewed evidence, or a separately approved scope change removes that topic from the release requirement.
+OHCHR is optional for v0.1 release. Its current rights state remains `BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED / ohchr-settlements-business`, so no OHCHR company rows may be ingested or distributed and the UI must continue to show `NOT_INTEGRATED`. This unresolved permission no longer blocks a military-first v0.1 store submission.
 
 Before any store action below, perform a **fresh official store-policy check** and record the date and relevant requirement. Do not rely on this document as permanent store-policy authority.
 
@@ -25,7 +27,7 @@ Before manual browser certification:
 7. Confirm `NONE` remains visibly described as not PASS/clean/safe.
 8. Confirm manual search is the identity-critical path and page hints only produce candidates.
 9. Record package SHA-256 before loading or uploading it.
-10. Do not submit while the current project-level release blocker remains active.
+10. Confirm `military_defence` is release-ready and the optional OHCHR topic still renders `NOT_INTEGRATED` while its rights state is blocked.
 
 ## Chrome
 
@@ -54,8 +56,8 @@ Manual capability certification:
 Store action:
 
 - **Do not submit without explicit human approval.**
-- Under the current #91 configuration, do not submit while the OHCHR public-reuse blocker is active.
-- Once both gates are satisfied, upload the reviewed ZIP to **Chrome Web Store** and record submission/review/release state separately from code capability.
+- The optional OHCHR rights block does not prevent a military-first v0.1 submission; it must remain `NOT_INTEGRATED`.
+- After the required military topic and human-approval gates are satisfied, upload the reviewed ZIP to **Chrome Web Store** and record submission/review/release state separately from code capability.
 
 ## Edge
 
@@ -73,8 +75,8 @@ Manual capability certification:
 Store action:
 
 - **Do not submit without explicit human approval.**
-- Under the current #91 configuration, do not submit while the OHCHR public-reuse blocker is active.
-- Once both gates are satisfied, upload the reviewed package to **Microsoft Edge Add-ons** and record the external review state.
+- The optional OHCHR rights block does not prevent a military-first v0.1 submission; it must remain `NOT_INTEGRATED`.
+- After the required military topic and human-approval gates are satisfied, upload the reviewed package to **Microsoft Edge Add-ons** and record the external review state.
 
 ## Firefox
 
@@ -93,8 +95,8 @@ Manual capability certification:
 Store action:
 
 - **Do not submit or sign for publication without explicit human approval.**
-- Under the current #91 configuration, do not submit while the OHCHR public-reuse blocker is active.
-- Once both gates are satisfied, submit through **addons.mozilla.org** and record signing/review/release state.
+- The optional OHCHR rights block does not prevent a military-first v0.1 submission; it must remain `NOT_INTEGRATED`.
+- After the required military topic and human-approval gates are satisfied, submit through **addons.mozilla.org** and record signing/review/release state.
 
 ## Safari
 
@@ -115,8 +117,8 @@ Manual capability certification:
 Store action:
 
 - **Do not upload for App Store review without explicit human approval.**
-- Under the current #91 configuration, do not submit while the OHCHR public-reuse blocker is active.
-- Once both gates are satisfied, submit the reviewed Safari extension/app through the current Apple distribution flow and record review/release state.
+- The optional OHCHR rights block does not prevent a military-first v0.1 submission; it must remain `NOT_INTEGRATED`.
+- After the required military topic and human-approval gates are satisfied, submit the reviewed Safari extension/app through the current Apple distribution flow and record review/release state.
 
 ## Evidence to record after human certification
 

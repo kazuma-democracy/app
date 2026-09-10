@@ -35,11 +35,13 @@ def test_ci_runs_capability_tests_without_node_package_manager():
     assert "yarn" not in lowered
 
 
-def test_report_cannot_claim_public_release_while_ohchr_is_blocked():
+def test_report_allows_military_first_store_submission_without_integrating_ohchr():
     report = REPORT.read_text(encoding="utf-8")
     assert "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED" in report
     assert "ohchr-settlements-business" in report
     assert "Israel/OPT topic: NOT_INTEGRATED" in report
+    assert "Release scope: STORE_SUBMISSION_READY" in report
+    assert "OHCHR is optional for v0.1 release" in report
     assert "PUBLIC_RELEASE_COMPLETE" not in report
 
 
@@ -53,3 +55,6 @@ def test_runbook_requires_human_approval_for_all_store_paths():
     assert "addons.mozilla.org" in text
     assert "Chrome Web Store" in text
     assert "Microsoft Edge Add-ons" in text
+    assert "OHCHR is optional for v0.1 release" in text
+    assert "military_defence" in text
+    assert "NOT_INTEGRATED" in text
