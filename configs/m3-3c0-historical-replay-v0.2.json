@@ -30,5 +30,6 @@
   "performance_values_allowed_during_selection": false,
   "current_constituent_back_projection": false,
   "paper_only": true,
-  "real_money_authority": false
+  "real_money_authority": false,
+  "preselection_contaminated_periods": ["2026-01", "2026-02", "2026-03"]
 }

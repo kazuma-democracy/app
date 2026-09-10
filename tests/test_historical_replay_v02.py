@@ -7,7 +7,7 @@ CONFIG_PATH = Path("configs/m3-3c0-historical-replay-v0.2.json")
 SOURCE_REGISTRY_PATH = Path("docs/SOURCE_REGISTRY.md")
 
 
-def test_v02_preregisters_clean_q1_before_returns() -> None:
+def test_v02_records_original_q1_preregistration_and_later_contamination() -> None:
     config = load_historical_replay_config(CONFIG_PATH)
     assert config["artifact_version"] == "m3.3c0-historical-replay-v0.2"
     assert config["allocation_source"]["kind"] == "ISHARES_1475_POINT_IN_TIME"
@@ -15,6 +15,7 @@ def test_v02_preregisters_clean_q1_before_returns() -> None:
     assert config["engineering_validation_periods"] == [
         "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"
     ]
+    assert config["preselection_contaminated_periods"] == ["2026-01", "2026-02", "2026-03"]
     assert config["future_holdout_periods"] == ["2026-10"]
     assert config["market_values_allowed_during_selection"] is False
     assert config["performance_values_allowed_during_selection"] is False
@@ -35,6 +36,12 @@ _PERIODS = {
     "2026-08": ("2026-07-31T15:30:00+09:00", "2026-07-31"),
     "2026-10": ("2026-09-30T15:30:00+09:00", "2026-09-30"),
 }
+
+
+def _uncontaminated_config() -> dict:
+    config = load_historical_replay_config(CONFIG_PATH)
+    config["preselection_contaminated_periods"] = []
+    return config
 
 
 def _candidate(period: str) -> dict:
@@ -71,13 +78,13 @@ def _candidate(period: str) -> dict:
 
 
 def test_v02_candidate_qualifies_from_metadata_only() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     result = qualify_candidate_month(_candidate("2026-01"), config)
     assert result["status"] == "CANDIDATE_QUALIFIED"
 
 
 def test_v02_control_available_after_cutoff_blocks() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     candidate = _candidate("2026-01")
     candidate["control_source_metadata"]["available_at"] = "2025-12-30T16:00:00+09:00"
     result = qualify_candidate_month(candidate, config)
@@ -86,16 +93,16 @@ def test_v02_control_available_after_cutoff_blocks() -> None:
 
 
 def test_v02_missing_original_availability_never_uses_as_of_date_as_substitute() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     candidate = _candidate("2026-01")
     candidate["control_source_metadata"].pop("available_at")
     result = qualify_candidate_month(candidate, config)
-    assert result["status"] != "CANDIDATE_QUALIFIED"
-    assert result["blockers"] == ["INVALID_CONTROL_AVAILABILITY"]
+    assert result["status"] == "BLOCK_EVIDENCE_CUTOFF"
+    assert result["blockers"] == ["CONTROL_AVAILABILITY_UNVERIFIED"]
 
 
 def test_v02_rights_uncertainty_blocks() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     candidate = _candidate("2026-01")
     candidate["control_source_metadata"]["rights_state"] = "REVIEW_REQUIRED"
     result = qualify_candidate_month(candidate, config)
@@ -103,7 +110,7 @@ def test_v02_rights_uncertainty_blocks() -> None:
 
 
 def test_v02_identity_source_mismatch_blocks() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     candidate = _candidate("2026-01")
     candidate["evidence_source_metadata"]["identity_semantic_sha256"] = "e" * 64
     result = qualify_candidate_month(candidate, config)
@@ -121,7 +128,7 @@ def test_v02_performance_field_blocks_before_selection() -> None:
 
 
 def test_v02_freezes_exact_q1_only_when_all_three_qualify() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     result = freeze_replay_window(
         [_candidate("2026-03"), _candidate("2026-01"), _candidate("2026-02")],
         config,
@@ -135,7 +142,7 @@ def test_v02_freezes_exact_q1_only_when_all_three_qualify() -> None:
 
 
 def test_v02_does_not_substitute_another_window_when_q1_month_blocks() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     blocked = _candidate("2026-02")
     blocked["control_source_metadata"]["rights_state"] = "REVIEW_REQUIRED"
     result = freeze_replay_window(
@@ -157,7 +164,7 @@ def test_v02_engineering_and_holdout_periods_never_qualify() -> None:
 
 
 def test_v02_window_hash_is_input_order_independent() -> None:
-    config = load_historical_replay_config(CONFIG_PATH)
+    config = _uncontaminated_config()
     candidates = [_candidate("2026-01"), _candidate("2026-02"), _candidate("2026-03")]
     first = freeze_replay_window(candidates, config)
     second = freeze_replay_window(list(reversed(candidates)), config)
@@ -346,3 +353,23 @@ def test_v02_execution_hash_is_input_order_independent() -> None:
         payload["security_returns"]["rows"].reverse()
     second = run_investable_proxy_replay(window, targets, policies, markets, config)
     assert first["semantic_payload_sha256"] == second["semantic_payload_sha256"]
+
+
+def test_v02_preregistered_q1_is_durably_disqualified_after_preselection_inspection() -> None:
+    config = load_historical_replay_config(CONFIG_PATH)
+    assert config["preselection_contaminated_periods"] == ["2026-01", "2026-02", "2026-03"]
+    result = qualify_candidate_month(_candidate("2026-01"), config)
+    assert result["status"] == "BLOCK_REPRODUCIBILITY"
+    assert result["blockers"] == ["PRESELECTION_MARKET_VALUE_INSPECTION"]
+
+
+def test_v02_preselection_market_value_inspection_blocks_headline_candidate() -> None:
+    config = _uncontaminated_config()
+    candidate = _candidate("2026-01")
+    candidate["selection_integrity"] = {
+        "market_value_inspected_before_freeze": True,
+        "note": "metadata-only boundary was breached during engineering inspection",
+    }
+    result = qualify_candidate_month(candidate, config)
+    assert result["status"] == "BLOCK_REPRODUCIBILITY"
+    assert result["blockers"] == ["PRESELECTION_MARKET_VALUE_INSPECTION"]

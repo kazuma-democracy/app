@@ -217,8 +217,12 @@ def test_qualification_cli_freezes_v02_q1_without_performance_inputs(tmp_path: P
         }),
         encoding="utf-8",
     )
+    config_path = tmp_path / "clean-v02-config.json"
+    config = json.loads((ROOT / "configs" / "m3-3c0-historical-replay-v0.2.json").read_text(encoding="utf-8"))
+    config["preselection_contaminated_periods"] = []
+    config_path.write_text(json.dumps(config), encoding="utf-8")
     result = module.run_qualification(
-        config_path=ROOT / "configs" / "m3-3c0-historical-replay-v0.2.json",
+        config_path=config_path,
         candidate_metadata_path=inventory,
         output_path=output,
         code_commit="test-v02",

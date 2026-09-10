@@ -73,7 +73,7 @@ def _qualify_investable_proxy_candidate(
         return _block("BLOCK_HISTORICAL_REPLAY_COVERAGE", candidate, "CONTROL_SOURCE_UNAVAILABLE")
     available_at = _parse_timestamp(control.get("available_at"))
     if available_at is None:
-        return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_CONTROL_AVAILABILITY")
+        return _block("BLOCK_EVIDENCE_CUTOFF", candidate, "CONTROL_AVAILABILITY_UNVERIFIED")
     if available_at > cutoff:
         return _block("BLOCK_EVIDENCE_CUTOFF", candidate, "CONTROL_AVAILABLE_AFTER_CUTOFF")
     as_of_date = str(control.get("as_of_date", ""))
@@ -123,6 +123,11 @@ def qualify_candidate_month(
     period = str(candidate.get("evaluation_period", ""))
     if _contains_performance_fields(candidate):
         return _block("BLOCK_REPRODUCIBILITY", candidate, "PERFORMANCE_FIELD_PRESENT")
+    if period in set(config.get("preselection_contaminated_periods", [])):
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "PRESELECTION_MARKET_VALUE_INSPECTION")
+    integrity = candidate.get("selection_integrity")
+    if isinstance(integrity, Mapping) and integrity.get("market_value_inspected_before_freeze") is True:
+        return _block("BLOCK_REPRODUCIBILITY", candidate, "PRESELECTION_MARKET_VALUE_INSPECTION")
     if not re.fullmatch(r"\d{4}-\d{2}", period):
         return _block("BLOCK_REPRODUCIBILITY", candidate, "INVALID_EVALUATION_PERIOD")
     if period in set(config.get("engineering_validation_periods", [])):

@@ -104,13 +104,15 @@ The following months are therefore engineering-only for the first headline resul
 
 During the feasibility spike, 1475 and/or TOPIX Total Return values for those months were inspected. They may be used for parser, proxy-fidelity and regression validation, but not promoted into the first headline replay.
 
-The current clean candidate window is:
+The originally preregistered clean candidate window was:
 
 - evaluation 2026-01, decision cutoff 2025-12-30T15:30:00+09:00;
 - evaluation 2026-02, decision cutoff 2026-01-30T15:30:00+09:00;
 - evaluation 2026-03, decision cutoff 2026-02-27T15:30:00+09:00.
 
 Before this window may be frozen, qualification may inspect only source existence, as-of dates, availability metadata, identities and hashes. It may not load 2026-01 through 2026-03 ETF, constituent or benchmark return values.
+
+Post-approval qualification on 2026-09-10 established two new facts. First, the dated BlackRock CSVs remain retrievable but their original publication time at each decision cutoff cannot be established from the current HTTP metadata or a captured archive; `as_of_date` is not a substitute for `available_at`. Second, a metadata-inspection command accidentally printed a holdings row containing Market Value and Weight before the Q1 window had frozen. No Q1 return value was loaded, but the approved selection boundary treats pre-freeze market-value inspection as contamination. Therefore 2026-01 through 2026-03 are now durably disqualified from the first headline result and are recorded in `preselection_contaminated_periods`. This amendment records new evidence and a broken preregistration premise; it is not a performance-driven method change.
 
 The BlackRock holdings endpoint was checked for successful dated-source existence at 2025-12-30, 2026-01-30 and 2026-02-27. Separately, the BlackRock all-history performance chart endpoint was fetched during proxy-fidelity research; therefore that chart is explicitly ineligible as the headline return source even though 2026-Q1 values were not printed or used for method selection. Headline P0 return must instead use the independent JPX-listed 1475 market-price route plus explicit distribution/corporate-action data, whose 2026-Q1 values have not been inspected during method selection.
 
