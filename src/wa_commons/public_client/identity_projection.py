@@ -25,13 +25,17 @@ def _first(row: Mapping[str, Any], *keys: str) -> str:
     return ""
 
 
-def _corporate_numbers(entity: Mapping[str, Any]) -> set[str]:
+def _identifier_values(entity: Mapping[str, Any], scheme: str) -> set[str]:
     return {
         str(item.get("value", "")).strip()
         for item in entity.get("identifiers", [])
-        if str(item.get("scheme", "")) == "JP_CORPORATE_NUMBER"
+        if str(item.get("scheme", "")) == scheme
         and str(item.get("value", "")).strip()
     }
+
+
+def _corporate_numbers(entity: Mapping[str, Any]) -> set[str]:
+    return _identifier_values(entity, "JP_CORPORATE_NUMBER")
 
 def _group_by_corporate_number(
     rows: Sequence[Mapping[str, Any]], *keys: str
@@ -108,6 +112,17 @@ def build_public_company_identity(
         if len(nta_matches) != 1:
             unresolved.append({"opaque_ref": _opaque_ref(entity), "reason": "missing_or_ambiguous_nta_identity"})
             continue
+        if len(edinet_matches) > 1:
+            canonical_edinet_codes = _identifier_values(entity, "EDINET_CODE")
+            if len(canonical_edinet_codes) == 1:
+                canonical_edinet = next(iter(canonical_edinet_codes))
+                narrowed = [
+                    row for row in edinet_matches
+                    if _first(row, "ＥＤＩＮＥＴコード", "EDINETコード", "EDINET Code", "edinet_code")
+                    == canonical_edinet
+                ]
+                if len(narrowed) == 1:
+                    edinet_matches = narrowed
         if len(edinet_matches) != 1:
             unresolved.append({"opaque_ref": _opaque_ref(entity), "reason": "ambiguous_edinet_identity" if edinet_matches else "missing_edinet_identity"})
             continue
