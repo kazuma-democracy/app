@@ -526,3 +526,47 @@ def test_listed_changes_parser_accepts_japanese_sector_prefix() -> None:
     result = module.parse_listed_company_changes_text(text, "2026-07", ["TSE:3681"])
     assert result["events"][0]["security_id"] == "TSE:3681"
     assert result["events"][0]["effective_date"] == "2026-07-01"
+
+
+def test_security_returns_do_not_require_benchmark_value() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    result = module.build_security_total_wealth_payload(
+        period="2026-01",
+        held_security_ids=["TSE:1475"],
+        start_prices=_price_snapshot({"TSE:1475": "100"}),
+        end_prices=_price_snapshot({"TSE:1475": "101"}),
+        events=[],
+        evidence_resolutions={"TSE:1475": _resolution()},
+        provenance={"sources": ["fixture"]},
+        config={"semantic_decimals": 12},
+    )
+    assert result["status"] == "SECURITY_RETURNS_OK"
+    assert result["rows"][0]["state"] == "RETURN_OK_NO_ACTION"
+    assert result["rows"][0]["total_wealth_return"] == "0.010000000000"
+
+
+def test_alpha_security_code_is_accepted_across_market_parsers() -> None:
+    module = importlib.import_module("wa_commons.portfolio.monthly_market")
+    price_text = (
+        "2026/07 130A ALPHA CORP Services P loan 100 100.00 1 110.00 2 "
+        "90.00 3 105.00 31 102.00 100 100 0 10000 10000 0 1\n"
+    )
+    price = module.parse_stock_price_table_text(
+        price_text, "2026-07", "2026-07-31", ["TSE:130A"], "end"
+    )
+    assert price["status"] == "PRICE_SNAPSHOT_OK"
+    split = module.parse_ex_rights_text(
+        "2026/07/30 130A ALPHA CORP 2026/07/31 Stock Split 1:2\n",
+        "2026-07",
+        ["TSE:130A"],
+    )
+    assert split["status"] == "EVENTS_OK"
+    assert split["events"][0]["security_id"] == "TSE:130A"
+
+    delisting = module.parse_listed_company_changes_text(
+        "Delisting\n2026/07/31 130A ALPHA CORP\n",
+        "2026-07",
+        ["TSE:130A"],
+    )
+    assert delisting["status"] == "EVENTS_OK"
+    assert delisting["events"][0]["security_id"] == "TSE:130A"

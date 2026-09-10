@@ -85,3 +85,39 @@ def test_claim_validates_against_canonical_schema(tmp_path: Path) -> None:
     assert claim is not None
     schema = json.loads(Path("schemas/evidence-claim.v0.1.schema.json").read_text(encoding="utf-8"))
     Draft202012Validator(schema).validate(claim)
+
+
+def test_parse_workbook_accepts_historical_source_metadata(tmp_path: Path) -> None:
+    path = tmp_path / "fixture.xlsx"
+    _fixture(path)
+    observations = parse_workbook(
+        path,
+        retrieved_at="2026-03-10T12:08:58+09:00",
+        source_url="https://example.invalid/fy2025-01.xlsx",
+        source_page_url="https://example.invalid/mod-index",
+        snapshot_version="fy2025-01-buppin-competitive",
+        fiscal_year=2025,
+    )
+    observation = observations[0]
+    assert observation.contract_date == "2025-04-01"
+    assert observation.source_url == "https://example.invalid/fy2025-01.xlsx"
+    assert observation.source_page_url == "https://example.invalid/mod-index"
+    assert observation.snapshot_version == "fy2025-01-buppin-competitive"
+    assert observation.observation_id.startswith("wc:obs:mod:fy2025-01-buppin-competitive:")
+    claim = observation_to_claim(observation)
+    assert claim is not None
+    assert claim["claim_id"].startswith("wc:claim:mod:fy2025-01-buppin-competitive:")
+    assert claim["evidence"][0]["evidence_id"].startswith("wc:evidence:mod:fy2025-01-buppin-competitive:")
+
+
+def test_parse_workbook_defaults_remain_current_snapshot(tmp_path: Path) -> None:
+    path = tmp_path / "fixture.xlsx"
+    _fixture(path)
+    observation = parse_workbook(path, retrieved_at="2026-08-21T12:00:00Z")[0]
+    assert observation.contract_date == "2026-04-01"
+    assert observation.snapshot_version == "fy2026-04-buppin-competitive"
+    assert observation.observation_id.startswith("wc:obs:mod-fy2026-04:")
+    claim = observation_to_claim(observation)
+    assert claim is not None
+    assert claim["claim_id"].startswith("wc:claim:mod-fy2026-04:")
+    assert claim["evidence"][0]["evidence_id"].startswith("wc:evidence:mod-fy2026-04:")

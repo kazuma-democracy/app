@@ -44,7 +44,9 @@ def extract_pdf_text(path: str | Path) -> str:
     return "\n".join((page.extract_text() or "") for page in reader.pages)
 
 
-_PRICE_LINE_RE = re.compile(r"^(?P<year>\d{4})/(?P<month>\d{2})\s+(?P<code>\d{4})\s+(?P<body>.+)$")
+_TSE_CODE_PATTERN = r"[0-9A-Z]{4}"
+_TSE_SECURITY_ID_RE = re.compile(rf"TSE:{_TSE_CODE_PATTERN}")
+_PRICE_LINE_RE = re.compile(rf"^(?P<year>\d{{4}})/(?P<month>\d{{2}})\s+(?P<code>{_TSE_CODE_PATTERN})\s+(?P<body>.+)$")
 _NUM_RE = re.compile(r"^-?\d[\d,]*(?:\.\d+)?$")
 
 
@@ -79,7 +81,7 @@ def parse_stock_price_table_text(
 ) -> dict[str, Any]:
     if price_role not in {"start", "end"}:
         raise ValueError("price_role must be 'start' or 'end'")
-    if not all(re.fullmatch(r"TSE:\d{4}", security_id) for security_id in security_ids):
+    if not all(_TSE_SECURITY_ID_RE.fullmatch(security_id) for security_id in security_ids):
         return {"status": "BLOCK_IDENTITY", "rows": []}
 
     valuation = date.fromisoformat(valuation_date)
@@ -130,7 +132,7 @@ _MONTH_ABBR = {
 
 
 def _canonical_security_ids(security_ids: list[str]) -> tuple[bool, set[str]]:
-    if not all(re.fullmatch(r"TSE:\d{4}", security_id) for security_id in security_ids):
+    if not all(_TSE_SECURITY_ID_RE.fullmatch(security_id) for security_id in security_ids):
         return False, set()
     return True, {security_id.removeprefix("TSE:") for security_id in security_ids}
 
@@ -177,11 +179,11 @@ def parse_ex_rights_text(text: str, period: str, security_ids: list[str]) -> dic
 
     events: list[dict[str, Any]] = []
     fixture_pattern = re.compile(
-        r"^(?P<ex>\d{4}/\d{2}/\d{2})\s+(?P<code>\d{4})\s+.*?"
+        rf"^(?P<ex>\d{{4}}/\d{{2}}/\d{{2}})\s+(?P<code>{_TSE_CODE_PATTERN})\s+.*?"
         r"(?P<record>\d{4}/\d{2}/\d{2})\s+Stock Split\s+(?P<ratio>\d+:\d+)\s*$"
     )
     real_pattern = re.compile(
-        r"^(?:Prime|Standard|Growth|TOKYO PRO Market)?\s*(?P<code>\d{4})\s+.*?"
+        rf"^(?:Prime|Standard|Growth|TOKYO PRO Market)?\s*(?P<code>{_TSE_CODE_PATTERN})\s+.*?"
         r"(?P<ex>\d{4}\.\d{2}\.\d{2})\s+(?P<record>\d{4}\.\d{2}\.\d{2})\s+"
         r"(?P<ratio>\d+:\d+)\s+(?:\u682a\u5f0f\u5206\u5272|Stock Split)\s*$"
     )
@@ -213,7 +215,7 @@ def parse_listed_company_changes_text(text: str, period: str, security_ids: list
 
     events: list[dict[str, Any]] = []
     section: str | None = None
-    row_pattern = re.compile(r"^(?:.*?\s)?(?P<date>\d{4}[/.]\d{2}[/.]\d{2})\s+(?P<code>\d{4})\b")
+    row_pattern = re.compile(rf"^(?:.*?\s)?(?P<date>\d{{4}}[/.]\d{{2}}[/.]\d{{2}})\s+(?P<code>{_TSE_CODE_PATTERN})\b")
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if line == "Delisting":
@@ -250,20 +252,15 @@ def _semantic_decimal(value: Decimal, decimals: int) -> str:
     return f"{value.quantize(quantum):.{decimals}f}"
 
 
-def build_monthly_return_payload(
+def _build_security_return_rows(
     period: str,
     held_security_ids: list[str],
     start_prices: dict[str, Any],
     end_prices: dict[str, Any],
-    benchmark_roi: dict[str, Any],
     events: list[dict[str, Any]],
     evidence_resolutions: dict[str, dict[str, Any]],
-    provenance: dict[str, Any],
     config: dict[str, Any],
-) -> dict[str, Any]:
-    if benchmark_roi.get("status") != "BENCHMARK_ROI_OK" or "decimal_return" not in benchmark_roi:
-        return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN", "period": period, "rows": []}
-
+) -> list[dict[str, Any]]:
     decimals = int(config.get("semantic_decimals", 12))
     start_map = _row_price_map(start_prices)
     end_map = _row_price_map(end_prices)
@@ -276,7 +273,7 @@ def build_monthly_return_payload(
     rows: list[dict[str, Any]] = []
     for security_id in sorted(set(held_security_ids)):
         base = {"security_id": security_id}
-        if not re.fullmatch(r"TSE:\d{4}", security_id):
+        if not _TSE_SECURITY_ID_RE.fullmatch(security_id):
             rows.append({**base, "state": "BLOCK_IDENTITY"})
             continue
         if security_id not in start_map:
@@ -334,7 +331,6 @@ def build_monthly_return_payload(
         if dividend_status == "CONFIRMED_NONE" and dividend_cash != 0:
             rows.append({**base, "state": "BLOCK_DIVIDEND_EVIDENCE"})
             continue
-
         start = start_map[security_id]
         end = end_map[security_id]
         if start <= 0:
@@ -354,14 +350,85 @@ def build_monthly_return_payload(
             "total_wealth_return": _semantic_decimal(total_return, decimals),
             "evidence_refs": sorted(str(ref) for ref in resolution.get("evidence_refs", [])),
         })
+    return rows
 
+
+def build_security_total_wealth_payload(
+    period: str,
+    held_security_ids: list[str],
+    start_prices: dict[str, Any],
+    end_prices: dict[str, Any],
+    events: list[dict[str, Any]],
+    evidence_resolutions: dict[str, dict[str, Any]],
+    provenance: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    rows = _build_security_return_rows(
+        period=period,
+        held_security_ids=held_security_ids,
+        start_prices=start_prices,
+        end_prices=end_prices,
+        events=events,
+        evidence_resolutions=evidence_resolutions,
+        config=config,
+    )
     blocked = any(str(row.get("state", "")).startswith("BLOCK_") for row in rows)
+    semantic_payload = {"period": period, "rows": rows}
+    semantic = json.dumps(
+        semantic_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return {
+        "status": "BLOCK_MARKET_DATA" if blocked else "SECURITY_RETURNS_OK",
+        "period": period,
+        "rows": rows,
+        "provenance": provenance,
+        "semantic_payload_sha256": hashlib.sha256(semantic.encode("utf-8")).hexdigest(),
+    }
+
+
+def build_monthly_return_payload(
+    period: str,
+    held_security_ids: list[str],
+    start_prices: dict[str, Any],
+    end_prices: dict[str, Any],
+    benchmark_roi: dict[str, Any],
+    events: list[dict[str, Any]],
+    evidence_resolutions: dict[str, dict[str, Any]],
+    provenance: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    if benchmark_roi.get("status") != "BENCHMARK_ROI_OK" or "decimal_return" not in benchmark_roi:
+        return {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN", "period": period, "rows": []}
+
+    security_payload = build_security_total_wealth_payload(
+        period=period,
+        held_security_ids=held_security_ids,
+        start_prices=start_prices,
+        end_prices=end_prices,
+        events=events,
+        evidence_resolutions=evidence_resolutions,
+        provenance=provenance,
+        config=config,
+    )
+    decimals = int(config.get("semantic_decimals", 12))
+    rows = security_payload["rows"]
+    blocked = security_payload["status"] != "SECURITY_RETURNS_OK"
     semantic_payload = {
         "period": period,
-        "benchmark_decimal_return": _semantic_decimal(Decimal(str(benchmark_roi["decimal_return"])), decimals),
+        "benchmark_decimal_return": _semantic_decimal(
+            Decimal(str(benchmark_roi["decimal_return"])), decimals
+        ),
         "rows": rows,
     }
-    semantic = json.dumps(semantic_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    semantic = json.dumps(
+        semantic_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     return {
         "status": "MONTHLY_RETURN_BLOCKED" if blocked else "MONTHLY_RETURN_OK",
         "period": period,

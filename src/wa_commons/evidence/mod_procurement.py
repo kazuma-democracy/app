@@ -140,9 +140,18 @@ def resolve_supplier(supplier_name: str, corporate_number: str) -> tuple[str, st
     return result.decision, f"jp:corporate-number:{number}"
 
 
-def parse_workbook(path: str | Path, *, retrieved_at: str) -> list[ProcurementObservation]:
+def parse_workbook(
+    path: str | Path,
+    *,
+    retrieved_at: str,
+    source_url: str = SOURCE_URL,
+    source_page_url: str = SOURCE_PAGE_URL,
+    snapshot_version: str = SNAPSHOT_VERSION,
+    fiscal_year: int = 2026,
+) -> list[ProcurementObservation]:
     path = Path(path)
     digest = sha256(path)
+    id_namespace = "mod-fy2026-04" if snapshot_version == SNAPSHOT_VERSION else f"mod:{snapshot_version}"
     wb = load_workbook(path, read_only=True, data_only=True)
     observations: list[ProcurementObservation] = []
     for ws in wb.worksheets:
@@ -158,14 +167,17 @@ def parse_workbook(path: str | Path, *, retrieved_at: str) -> list[ProcurementOb
             supplier_cell = values[columns["supplier"]] if columns["supplier"] < len(values) else ""
             supplier_name, supplier_address = _split_supplier(supplier_cell)
             corporate_number = _digits(values[columns["corporate_number"]] if columns["corporate_number"] < len(values) else "")
-            contract_date = _contract_date(values[columns["date"]] if columns["date"] < len(values) else "")
+            contract_date = _contract_date(
+                values[columns["date"]] if columns["date"] < len(values) else "",
+                fiscal_year=fiscal_year,
+            )
             if not supplier_name or not contract_date:
                 continue
             authority = _text(values[columns.get("authority", -1)]) if columns.get("authority", -1) >= 0 else CONTRACTING_AUTHORITY
             decision, entity_id = resolve_supplier(supplier_name, corporate_number)
             observations.append(
                 ProcurementObservation(
-                    observation_id=f"wc:obs:mod-fy2026-04:{ws.title}:{row_no}",
+                    observation_id=f"wc:obs:{id_namespace}:{ws.title}:{row_no}",
                     subject=subject,
                     supplier_name=supplier_name,
                     supplier_address=supplier_address,
@@ -174,11 +186,12 @@ def parse_workbook(path: str | Path, *, retrieved_at: str) -> list[ProcurementOb
                     contract_amount_jpy=_amount(values[columns["contract_amount"]]),
                     planned_price_jpy=_amount(values[columns["planned_price"]]) if "planned_price" in columns else None,
                     contracting_authority=authority or CONTRACTING_AUTHORITY,
-                    source_url=SOURCE_URL,
-                    source_page_url=SOURCE_PAGE_URL,
+                    source_url=source_url,
+                    source_page_url=source_page_url,
                     source_locator=f"sheet={ws.title};row={row_no}",
                     retrieved_at=retrieved_at,
                     source_sha256=digest,
+                    snapshot_version=snapshot_version,
                     identity_decision=decision,
                     entity_id=entity_id,
                 )
@@ -199,6 +212,7 @@ def observation_to_claim(observation: ProcurementObservation) -> dict | None:
     # IDs are ASCII-only, so derive a stable key from the full observation ID while
     # keeping the human-readable workbook locator separately in evidence.locator.
     stable_key = hashlib.sha256(observation.observation_id.encode("utf-8")).hexdigest()[:16]
+    id_namespace = "mod-fy2026-04" if observation.snapshot_version == SNAPSHOT_VERSION else f"mod:{observation.snapshot_version}"
     value = {
         "contracting_authority": observation.contracting_authority,
         "contract_subject": observation.subject,
@@ -208,7 +222,7 @@ def observation_to_claim(observation: ProcurementObservation) -> dict | None:
     }
     return {
         "schema_version": "0.1",
-        "claim_id": f"wc:claim:mod-fy2026-04:{stable_key}",
+        "claim_id": f"wc:claim:{id_namespace}:{stable_key}",
         "subject": {
             "entity_id": observation.entity_id,
             "entity_type": "company",
@@ -231,7 +245,7 @@ def observation_to_claim(observation: ProcurementObservation) -> dict | None:
             "effective_to": observation.contract_date,
         },
         "evidence": [{
-            "evidence_id": f"wc:evidence:mod-fy2026-04:{stable_key}",
+            "evidence_id": f"wc:evidence:{id_namespace}:{stable_key}",
             "source_id": SOURCE_ID,
             "source_url": observation.source_url,
             "publisher": "Japan Ministry of Defense",
