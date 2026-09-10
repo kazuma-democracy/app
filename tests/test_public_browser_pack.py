@@ -155,6 +155,24 @@ def build_fixture(*, order: str = "forward", include_blocked: bool = False) -> d
     )
 
 
+def test_pack_manifest_uses_canonical_coverage_semantic_hash():
+    coverage = coverage_fixture()
+    coverage.pop("matrix_sha256", None)
+    coverage["manifest"] = {"coverage_semantic_sha256": "c" * 64}
+    pack = build_public_browser_pack(
+        public_identity=public_identity_fixture(),
+        coverage=coverage,
+        screening=screening_fixture(),
+        evidence_graph={"claims": [mod_claim()]},
+        identity_bridge=bridge_fixture(),
+        source_rights=rights_fixture(),
+        profile_ids=["public:strict-military-specific:v1"],
+        generated_at="2026-09-11T00:00:00Z",
+        code_commit="abc123",
+    )
+    assert pack["manifest"]["coverage_semantic_sha256"] == "c" * 64
+
+
 def test_pack_is_order_independent_and_has_no_local_only_fields():
     first = build_fixture(order="forward")
     second = build_fixture(order="reverse")

@@ -271,6 +271,18 @@ def _rights_hash(rights: Mapping[str, PublicSourceRights]) -> str:
     return _sha256(rows)
 
 
+def _coverage_semantic_sha256(coverage: Mapping[str, Any]) -> str:
+    manifest_value = str(
+        coverage.get("manifest", {}).get("coverage_semantic_sha256", "")
+    ).strip()
+    if manifest_value:
+        return manifest_value
+    top_level = str(coverage.get("matrix_sha256", "")).strip()
+    if top_level:
+        return top_level
+    return _sha256(coverage.get("matrix", coverage))
+
+
 def _semantic_payload(pack: Mapping[str, Any]) -> dict[str, Any]:
     manifest = pack["manifest"]
     keys = (
@@ -360,7 +372,7 @@ def build_public_browser_pack(
         "code_commit": code_commit,
         "identity_semantic_sha256": identity_hash,
         "evidence_semantic_sha256": _sha256(_canonical_graph(evidence_graph)),
-        "coverage_semantic_sha256": str(coverage.get("matrix_sha256", _sha256(coverage))),
+        "coverage_semantic_sha256": _coverage_semantic_sha256(coverage),
         "screening_semantic_sha256": str(screening.get("screening_sha256", _sha256(screening))),
         "source_rights_sha256": _rights_hash(source_rights),
         "profile_hashes": {row["profile_id"]: row["policy_sha256"] for row in profile_rows},
