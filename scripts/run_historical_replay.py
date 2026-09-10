@@ -6,7 +6,9 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from wa_commons.portfolio.historical_replay import run_frozen_replay
+from wa_commons.portfolio.historical_replay import (
+    run_frozen_replay, run_investable_proxy_replay, verify_frozen_target_manifest,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -15,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--frozen-window", required=True, type=Path)
     parser.add_argument("--policy-payload-map", required=True, type=Path)
+    parser.add_argument("--frozen-targets", type=Path)
     parser.add_argument("--market-payload-map", required=True, type=Path)
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--local-output", required=True, type=Path)
@@ -43,6 +46,7 @@ def build_public_payload(
         "window": list(result.get("window", [])),
         "window_semantic_sha256": result.get("window_semantic_sha256"),
         "semantic_payload_sha256": result.get("semantic_payload_sha256"),
+        "targets_semantic_sha256": result.get("targets_semantic_sha256"),
         "blocker_counts": dict(Counter(result.get("blockers", []))),
         "publication": {
             "performance_rights_cleared": rights_cleared,
@@ -63,6 +67,8 @@ def build_public_payload(
             public_month["financial"] = source_month.get("financial", {})
         public["arms"] = result.get("arms", [])
         public["benchmark"] = result.get("benchmark", {})
+        if "topix" in result:
+            public["topix"] = result.get("topix", {})
     return public
 
 
@@ -78,6 +84,7 @@ def run_replay(
     *,
     frozen_window_path: str | Path,
     policy_payload_map_path: str | Path,
+    frozen_targets_path: str | Path | None = None,
     market_payload_map_path: str | Path,
     config_path: str | Path,
     local_output_path: str | Path,
@@ -92,9 +99,22 @@ def run_replay(
         raise ValueError("frozen window manifest is required before replay execution")
 
     config = _load_json(config_path)
+    is_v02 = str(config.get("allocation_source", {}).get("kind", "")) == "ISHARES_1475_POINT_IN_TIME"
+    targets: dict[str, Any] | None = None
+    if is_v02:
+        if frozen_targets_path is None:
+            raise ValueError("frozen targets are required for v0.2 replay execution")
+        targets = _load_json(frozen_targets_path)
+        if verify_frozen_target_manifest(window, targets) is not None:
+            raise ValueError("valid frozen targets are required before market access")
+
     policy_map = _load_json(policy_payload_map_path)
     market_map = _load_json(market_payload_map_path)
-    result = run_frozen_replay(window, policy_map, market_map, config)
+    if is_v02:
+        assert targets is not None
+        result = run_investable_proxy_replay(window, targets, policy_map, market_map, config)
+    else:
+        result = run_frozen_replay(window, policy_map, market_map, config)
 
     _write_json(local_output, result)
     _write_json(public_output, build_public_payload(result, config))
@@ -106,6 +126,7 @@ def main() -> int:
     run_replay(
         frozen_window_path=args.frozen_window,
         policy_payload_map_path=args.policy_payload_map,
+        frozen_targets_path=args.frozen_targets,
         market_payload_map_path=args.market_payload_map,
         config_path=args.config,
         local_output_path=args.local_output,

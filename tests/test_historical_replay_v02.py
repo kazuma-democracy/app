@@ -162,3 +162,187 @@ def test_v02_window_hash_is_input_order_independent() -> None:
     first = freeze_replay_window(candidates, config)
     second = freeze_replay_window(list(reversed(candidates)), config)
     assert first["window_semantic_sha256"] == second["window_semantic_sha256"]
+
+
+import hashlib
+import json
+
+
+def _sha(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _execution_policy() -> dict:
+    base_rows = [
+        {"security_id": "TSE:1001", "benchmark_weight": "0.200000000000",
+         "target_weight": "0.200000000000", "instruction": "NEUTRAL", "multiplier": "1.000000000000"},
+        {"security_id": "TSE:1002", "benchmark_weight": "0.800000000000",
+         "target_weight": "0.800000000000", "instruction": "NEUTRAL", "multiplier": "1.000000000000"},
+    ]
+    p2_rows = [
+        {"security_id": "TSE:1001", "benchmark_weight": "0.200000000000",
+         "target_weight": "0.100000000000", "instruction": "UNDERWEIGHT", "multiplier": "0.500000000000"},
+        {"security_id": "TSE:1002", "benchmark_weight": "0.800000000000",
+         "target_weight": "0.900000000000", "instruction": "NEUTRAL", "multiplier": "1.000000000000"},
+    ]
+    arms = [
+        {"arm_id": "P0", "allocation_policy_id": "control:topix", "allocation_policy_version": "1",
+         "semantic_target_sha256": "0" * 64, "metrics": {"active_share": "0.000000000000"},
+         "target_weights": base_rows},
+        {"arm_id": "P1", "allocation_policy_id": "minimal", "allocation_policy_version": "1",
+         "semantic_target_sha256": "1" * 64, "metrics": {"active_share": "0.000000000000"},
+         "target_weights": base_rows},
+        {"arm_id": "P2", "allocation_policy_id": "active", "allocation_policy_version": "1",
+         "semantic_target_sha256": "2" * 64, "metrics": {"active_share": "0.100000000000"},
+         "target_weights": p2_rows},
+    ]
+    return {
+        "status": "FROZEN_POLICY_FAMILY",
+        "manifest": {
+            "profile_id": "example:strict-military-avoidance",
+            "profile_version": "1", "policy_sha256": "a" * 64,
+            "policy_family_sha256": "b" * 64,
+        },
+        "arms": arms,
+    }
+
+
+def _execution_inputs() -> tuple[dict, dict, dict, dict]:
+    periods = ["2026-01", "2026-02", "2026-03"]
+    window = {"status": "HISTORICAL_REPLAY_WINDOW_FROZEN", "window": periods,
+              "window_semantic_sha256": "c" * 64}
+    policy = _execution_policy()
+    semantics = {
+        "profile_id": policy["manifest"]["profile_id"],
+        "profile_version": policy["manifest"]["profile_version"],
+        "policy_sha256": policy["manifest"]["policy_sha256"],
+        "arms": [
+            {"arm_id": arm["arm_id"], "allocation_policy_id": arm["allocation_policy_id"],
+             "allocation_policy_version": arm["allocation_policy_version"]}
+            for arm in policy["arms"]
+        ],
+    }
+    semantics_sha = _sha(semantics)
+    target_months = []
+    for period in periods:
+        target_months.append({
+            "period": period, "control_snapshot_sha256": "d" * 64,
+            "control_mapping_sha256": "e" * 64, "identity_semantic_sha256": "f" * 64,
+            "screening_sha256": "1" * 64, "evidence_provenance_sha256": "2" * 64,
+            "policy_family_sha256": policy["manifest"]["policy_family_sha256"],
+            "policy_payload_sha256": _sha(policy), "policy_semantics_sha256": semantics_sha,
+            "direct_changed_security_ids": {"P1": [], "P2": ["TSE:1001"]},
+        })
+    targets = {
+        "status": "HISTORICAL_REPLAY_TARGETS_FROZEN", "window": periods,
+        "window_semantic_sha256": window["window_semantic_sha256"],
+        "policy_semantics": semantics, "policy_semantics_sha256": semantics_sha,
+        "months": target_months,
+    }
+    policies = {period: deepcopy(policy) for period in periods}
+    markets = {
+        period: {
+            "status": "PROXY_MARKET_BUNDLE_OK",
+            "security_returns": {
+                "status": "SECURITY_RETURNS_OK",
+                "rows": [
+                    {"security_id": "TSE:1475", "state": "RETURN_OK_NO_ACTION",
+                     "total_wealth_return": "0.010000000000"},
+                    {"security_id": "TSE:1001", "state": "RETURN_OK_NO_ACTION",
+                     "total_wealth_return": "0.020000000000"},
+                ],
+            },
+            "topix_roi": {"status": "BENCHMARK_ROI_OK", "decimal_return": "0.009000000000"},
+        }
+        for period in periods
+    }
+    return window, targets, policies, markets
+
+
+def test_v02_execution_separates_policy_effect_from_topix_tracking() -> None:
+    from wa_commons.portfolio.historical_replay import run_investable_proxy_replay
+    config = load_historical_replay_config(CONFIG_PATH)
+    window, targets, policies, markets = _execution_inputs()
+    result = run_investable_proxy_replay(window, targets, policies, markets, config)
+    assert result["status"] == "HISTORICAL_REPLAY_OK"
+    financial = result["months"][0]["financial"]
+    assert financial["p0_return"] == "0.010000000000"
+    assert financial["p0_tracking_difference_vs_topix"] == "0.001000000000"
+    p2 = next(item for item in financial["arms"] if item["arm_id"] == "P2")
+    assert p2["portfolio_return"] == "0.008750000000"
+    assert p2["policy_effect_vs_p0"] == "-0.001250000000"
+
+
+def test_v02_execution_rejects_unfrozen_targets_before_market_access() -> None:
+    from collections.abc import Mapping
+    from wa_commons.portfolio.historical_replay import run_investable_proxy_replay
+
+    class ExplodingMapping(Mapping):
+        def __getitem__(self, key):
+            raise AssertionError("market payload must not be read")
+        def __iter__(self):
+            raise AssertionError("market payload must not be iterated")
+        def __len__(self):
+            raise AssertionError("market payload must not be sized")
+
+    config = load_historical_replay_config(CONFIG_PATH)
+    window, targets, policies, _ = _execution_inputs()
+    targets["status"] = "BLOCK_REPRODUCIBILITY"
+    result = run_investable_proxy_replay(window, targets, policies, ExplodingMapping(), config)
+    assert result["status"] == "BLOCK_REPRODUCIBILITY"
+
+
+def test_v02_execution_fails_closed_on_missing_or_blocked_changed_return() -> None:
+    from wa_commons.portfolio.historical_replay import run_investable_proxy_replay
+    config = load_historical_replay_config(CONFIG_PATH)
+    window, targets, policies, markets = _execution_inputs()
+    markets["2026-01"]["security_returns"]["rows"] = [
+        markets["2026-01"]["security_returns"]["rows"][0]
+    ]
+    result = run_investable_proxy_replay(window, targets, policies, markets, config)
+    assert result["status"] == "BLOCK_MARKET_DATA"
+
+    window, targets, policies, markets = _execution_inputs()
+    changed = markets["2026-01"]["security_returns"]["rows"][1]
+    changed["state"] = "BLOCK_CORPORATE_ACTION"
+    changed.pop("total_wealth_return")
+    result = run_investable_proxy_replay(window, targets, policies, markets, config)
+    assert result["status"] == "BLOCK_CORPORATE_ACTION"
+
+
+def test_v02_execution_blocks_missing_p0_or_invalid_topix() -> None:
+    from wa_commons.portfolio.historical_replay import run_investable_proxy_replay
+    config = load_historical_replay_config(CONFIG_PATH)
+    window, targets, policies, markets = _execution_inputs()
+    markets["2026-01"]["security_returns"]["rows"] = [
+        markets["2026-01"]["security_returns"]["rows"][1]
+    ]
+    assert run_investable_proxy_replay(window, targets, policies, markets, config)["status"] == "BLOCK_MARKET_DATA"
+
+    window, targets, policies, markets = _execution_inputs()
+    markets["2026-01"]["topix_roi"] = {"status": "BLOCK_BENCHMARK_MONTHLY_RETURN"}
+    assert run_investable_proxy_replay(window, targets, policies, markets, config)["status"] == "BLOCK_MARKET_DATA"
+
+
+def test_v02_execution_blocks_policy_semantics_drift() -> None:
+    from wa_commons.portfolio.historical_replay import run_investable_proxy_replay
+    config = load_historical_replay_config(CONFIG_PATH)
+    window, targets, policies, markets = _execution_inputs()
+    policies["2026-02"]["manifest"]["policy_sha256"] = "9" * 64
+    result = run_investable_proxy_replay(window, targets, policies, markets, config)
+    assert result["status"] == "BLOCK_REPRODUCIBILITY"
+
+
+def test_v02_execution_hash_is_input_order_independent() -> None:
+    from wa_commons.portfolio.historical_replay import run_investable_proxy_replay
+    config = load_historical_replay_config(CONFIG_PATH)
+    window, targets, policies, markets = _execution_inputs()
+    first = run_investable_proxy_replay(window, targets, policies, markets, config)
+    policies = dict(reversed(list(policies.items())))
+    markets = dict(reversed(list(markets.items())))
+    for payload in markets.values():
+        payload["security_returns"]["rows"].reverse()
+    second = run_investable_proxy_replay(window, targets, policies, markets, config)
+    assert first["semantic_payload_sha256"] == second["semantic_payload_sha256"]

@@ -622,3 +622,219 @@ def verify_frozen_target_manifest(
     if set(by_period) != set(window):
         return "BLOCK_REPRODUCIBILITY"
     return None
+
+
+def _proxy_policy_semantics(payload: Mapping[str, Any]) -> dict[str, Any] | None:
+    manifest = payload.get("manifest")
+    arms = payload.get("arms")
+    if payload.get("status") != "FROZEN_POLICY_FAMILY":
+        return None
+    if not isinstance(manifest, Mapping) or not isinstance(arms, list):
+        return None
+    return {
+        "profile_id": str(manifest.get("profile_id", "")),
+        "profile_version": str(manifest.get("profile_version", "")),
+        "policy_sha256": str(manifest.get("policy_sha256", "")),
+        "arms": [
+            {
+                "arm_id": str(arm.get("arm_id", "")),
+                "allocation_policy_id": str(arm.get("allocation_policy_id", "")),
+                "allocation_policy_version": str(arm.get("allocation_policy_version", "")),
+            }
+            for arm in sorted(arms, key=lambda item: str(item.get("arm_id", "")))
+        ],
+    }
+
+
+def _proxy_target_months(targets: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    months = targets.get("months")
+    if not isinstance(months, list):
+        return {}
+    result: dict[str, Mapping[str, Any]] = {}
+    for month in months:
+        if not isinstance(month, Mapping):
+            return {}
+        period = str(month.get("period", ""))
+        if not period or period in result:
+            return {}
+        result[period] = month
+    return result
+
+
+def _proxy_security_returns(payload: Mapping[str, Any]) -> tuple[str | None, dict[str, Decimal]]:
+    security_payload = payload.get("security_returns")
+    if not isinstance(security_payload, Mapping):
+        return "BLOCK_MARKET_DATA", {}
+    if security_payload.get("status") != "SECURITY_RETURNS_OK":
+        return "BLOCK_MARKET_DATA", {}
+    rows = security_payload.get("rows")
+    if not isinstance(rows, list):
+        return "BLOCK_MARKET_DATA", {}
+    values: dict[str, Decimal] = {}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            return "BLOCK_MARKET_DATA", {}
+        state = str(row.get("state", ""))
+        if state == "BLOCK_CORPORATE_ACTION":
+            return "BLOCK_CORPORATE_ACTION", {}
+        if not state.startswith("RETURN_OK_"):
+            return "BLOCK_MARKET_DATA", {}
+        security_id = str(row.get("security_id", ""))
+        if not security_id or security_id in values:
+            return "BLOCK_MARKET_DATA", {}
+        try:
+            values[security_id] = Decimal(str(row["total_wealth_return"]))
+        except (KeyError, InvalidOperation):
+            return "BLOCK_MARKET_DATA", {}
+    return None, values
+
+
+def _proxy_arm(payload: Mapping[str, Any], arm_id: str) -> Mapping[str, Any] | None:
+    arms = [
+        arm for arm in payload.get("arms", [])
+        if isinstance(arm, Mapping) and str(arm.get("arm_id", "")) == arm_id
+    ]
+    return arms[0] if len(arms) == 1 else None
+
+
+def run_investable_proxy_replay(
+    window_manifest: Mapping[str, Any],
+    frozen_targets: Mapping[str, Any],
+    monthly_policy_payloads: Mapping[str, Mapping[str, Any]],
+    monthly_market_payloads: Mapping[str, Mapping[str, Any]],
+    config: Mapping[str, Any],
+) -> dict[str, Any]:
+    from wa_commons.portfolio.investable_proxy import (
+        compute_residual_sleeve_financial,
+        directly_changed_security_ids,
+    )
+
+    window = list(window_manifest.get("window", []))
+    if verify_frozen_target_manifest(window_manifest, frozen_targets) is not None:
+        return _replay_block("BLOCK_REPRODUCIBILITY", window, "TARGETS_NOT_FROZEN")
+    if str(config.get("allocation_source", {}).get("kind", "")) != "ISHARES_1475_POINT_IN_TIME":
+        return _replay_block("BLOCK_REPRODUCIBILITY", window, "INVALID_PROXY_CONFIG")
+    target_months = _proxy_target_months(frozen_targets)
+    if set(target_months) != set(window):
+        return _replay_block("BLOCK_REPRODUCIBILITY", window, "TARGET_MONTH_MISMATCH")
+
+    validated_policies: dict[str, Mapping[str, Any]] = {}
+    expected_semantics_sha = str(frozen_targets.get("policy_semantics_sha256", ""))
+    for period in window:
+        policy = monthly_policy_payloads.get(period)
+        if not isinstance(policy, Mapping):
+            return _replay_block("BLOCK_REPRODUCIBILITY", window, f"MISSING_POLICY_MONTH:{period}")
+        target_month = target_months[period]
+        semantics = _proxy_policy_semantics(policy)
+        if semantics is None or _canonical_sha256(semantics) != expected_semantics_sha:
+            return _replay_block("BLOCK_REPRODUCIBILITY", window, f"POLICY_SEMANTICS_DRIFT:{period}")
+        if _canonical_sha256(policy) != str(target_month.get("policy_payload_sha256", "")):
+            return _replay_block("BLOCK_REPRODUCIBILITY", window, f"POLICY_PAYLOAD_HASH_MISMATCH:{period}")
+        family_sha = str(policy.get("manifest", {}).get("policy_family_sha256", ""))
+        if family_sha != str(target_month.get("policy_family_sha256", "")):
+            return _replay_block("BLOCK_REPRODUCIBILITY", window, f"POLICY_FAMILY_HASH_MISMATCH:{period}")
+        for arm_id in ("P1", "P2"):
+            expected_ids = list(target_month.get("direct_changed_security_ids", {}).get(arm_id, []))
+            try:
+                actual_ids = directly_changed_security_ids(policy, arm_id)
+            except ValueError:
+                return _replay_block("BLOCK_REPRODUCIBILITY", window, f"INVALID_POLICY_ARM:{period}:{arm_id}")
+            if actual_ids != expected_ids:
+                return _replay_block("BLOCK_REPRODUCIBILITY", window, f"DIRECT_CHANGE_HASH_MISMATCH:{period}:{arm_id}")
+        validated_policies[period] = policy
+
+    cumulative_by_arm = {arm_id: Decimal("1") for arm_id in ("P0", "P1", "P2")}
+    topix_wealth = Decimal("1")
+    month_results: list[dict[str, Any]] = []
+
+    for period in window:
+        market = monthly_market_payloads.get(period)
+        if not isinstance(market, Mapping) or market.get("status") != "PROXY_MARKET_BUNDLE_OK":
+            return _replay_block("BLOCK_MARKET_DATA", window, f"INVALID_PROXY_MARKET_MONTH:{period}")
+        market_block, security_returns = _proxy_security_returns(market)
+        if market_block is not None:
+            return _replay_block(market_block, window, f"SECURITY_RETURN_BLOCK:{period}")
+        if "TSE:1475" not in security_returns:
+            return _replay_block("BLOCK_MARKET_DATA", window, f"MISSING_P0_RETURN:{period}")
+        p0_return = security_returns["TSE:1475"]
+
+        topix = market.get("topix_roi")
+        if not isinstance(topix, Mapping) or topix.get("status") != "BENCHMARK_ROI_OK":
+            return _replay_block("BLOCK_MARKET_DATA", window, f"INVALID_TOPIX_RETURN:{period}")
+        try:
+            topix_return = Decimal(str(topix["decimal_return"]))
+        except (KeyError, InvalidOperation):
+            return _replay_block("BLOCK_MARKET_DATA", window, f"INVALID_TOPIX_RETURN:{period}")
+
+        policy = validated_policies[period]
+        p0_arm = _proxy_arm(policy, "P0")
+        if p0_arm is None:
+            return _replay_block("BLOCK_REPRODUCIBILITY", window, f"MISSING_P0_ARM:{period}")
+        control_rows = list(p0_arm.get("target_weights", []))
+        transmission: list[dict[str, Any]] = []
+        financial_arms: list[dict[str, Any]] = []
+        for arm_id in ("P0", "P1", "P2"):
+            arm = _proxy_arm(policy, arm_id)
+            if arm is None:
+                return _replay_block("BLOCK_REPRODUCIBILITY", window, f"MISSING_POLICY_ARM:{period}:{arm_id}")
+            transmission.append({
+                "arm_id": arm_id,
+                "semantic_target_sha256": arm.get("semantic_target_sha256"),
+                "metrics": dict(arm.get("metrics", {})),
+            })
+            if arm_id == "P0":
+                arm_return = p0_return
+            else:
+                try:
+                    residual = compute_residual_sleeve_financial(
+                        p0_total_return=p0_return,
+                        control_rows=control_rows,
+                        policy_rows=list(arm.get("target_weights", [])),
+                        changed_returns=security_returns,
+                    )
+                    arm_return = Decimal(str(residual["policy_return"]))
+                except ValueError:
+                    return _replay_block("BLOCK_MARKET_DATA", window, f"CHANGED_SECURITY_RETURN_MISSING:{period}:{arm_id}")
+            cumulative_by_arm[arm_id] *= Decimal("1") + arm_return
+            financial_arms.append({
+                "arm_id": arm_id,
+                "portfolio_return": _decimal_text(arm_return),
+                "policy_effect_vs_p0": _decimal_text(arm_return - p0_return),
+            })
+        topix_wealth *= Decimal("1") + topix_return
+        month_results.append({
+            "period": period,
+            "policy_transmission": transmission,
+            "financial": {
+                "p0_return": _decimal_text(p0_return),
+                "arms": financial_arms,
+                "topix_total_return": _decimal_text(topix_return),
+                "p0_tracking_difference_vs_topix": _decimal_text(p0_return - topix_return),
+            },
+        })
+
+    arm_summaries = [
+        {
+            "arm_id": arm_id,
+            "cumulative_wealth": _decimal_text(cumulative_by_arm[arm_id]),
+            "cumulative_return": _decimal_text(cumulative_by_arm[arm_id] - Decimal("1")),
+        }
+        for arm_id in ("P0", "P1", "P2")
+    ]
+    topix_summary = {
+        "cumulative_wealth": _decimal_text(topix_wealth),
+        "cumulative_return": _decimal_text(topix_wealth - Decimal("1")),
+    }
+    semantic_payload = {
+        "status": "HISTORICAL_REPLAY_OK",
+        "window": window,
+        "window_semantic_sha256": window_manifest.get("window_semantic_sha256"),
+        "targets_semantic_sha256": _canonical_sha256(frozen_targets),
+        "months": month_results,
+        "arms": arm_summaries,
+        "topix": topix_summary,
+    }
+    return {
+        **semantic_payload,
+        "semantic_payload_sha256": _canonical_sha256(semantic_payload),
+    }
