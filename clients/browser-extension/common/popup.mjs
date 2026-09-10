@@ -16,6 +16,7 @@ const profile = document.querySelector("#profile");
 const status = document.querySelector("#status");
 const results = document.querySelector("#results");
 const detail = document.querySelector("#detail");
+const pageHintButton = document.querySelector("#page-hint");
 let pack = null;
 let selectedCompany = null;
 
@@ -178,6 +179,23 @@ form.addEventListener("submit", (event) => {
 profile.addEventListener("change", async () => {
   await api.storage.local.set({ profile_id: profile.value });
   if (selectedCompany) renderCompany(selectedCompany);
+});
+
+pageHintButton.addEventListener("click", async () => {
+  try {
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error("active tab unavailable");
+    const injected = await api.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["page-hint.js"],
+    });
+    const pageHint = injected?.[0]?.result ?? {};
+    const hintQuery = pageHint.selectedText || pageHint.title || "";
+    query.value = hintQuery;
+    renderCandidates(searchCompanies(pack, hintQuery));
+  } catch {
+    status.textContent = t("pageHintUnavailable");
+  }
 });
 
 initialize().catch(() => {
