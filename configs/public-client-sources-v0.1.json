@@ -1,0 +1,84 @@
+{
+  "contract_version": "public-client-sources-v0.1",
+  "checked_at": "2026-09-11",
+  "sources": [
+    {
+      "source_id": "jp-mod-procurement",
+      "state": "PUBLIC_FIELDS_ALLOWED",
+      "terms_url": "https://www.mod.go.jp/j/info/contents.html",
+      "checked_at": "2026-09-11",
+      "allowed_fields": [
+        "source_id",
+        "source_publisher",
+        "source_url",
+        "source_locator",
+        "claim_id",
+        "narrow_claim",
+        "category",
+        "predicate",
+        "contract_date",
+        "contract_subject",
+        "contract_subject_classification",
+        "adjudication_status",
+        "confidence",
+        "evidence_date",
+        "retrieved_at"
+      ],
+      "attribution_required": true,
+      "raw_rows_public": false,
+      "note": "PDL1.0-style use is allowed subject to attribution and source-specific exclusions. A record with contrary third-party-rights markings must fail closed."
+    },
+    {
+      "source_id": "jp-nta-corporate-number",
+      "state": "PUBLIC_FIELDS_ALLOWED",
+      "terms_url": "https://www.houjin-bangou.nta.go.jp/riyokiyaku/index.html",
+      "checked_at": "2026-09-11",
+      "allowed_fields": [
+        "corporate_number",
+        "legal_name",
+        "source_url",
+        "source_snapshot"
+      ],
+      "attribution_required": true,
+      "raw_rows_public": false,
+      "note": "Public projection uses only corporate-number identity fields needed by the client; attribution is required."
+    },
+    {
+      "source_id": "jp-edinet",
+      "state": "PUBLIC_FIELDS_ALLOWED",
+      "terms_url": "https://disclosure2dl.edinet-fsa.go.jp/guide/static/disclosure/WZEK0030.html",
+      "checked_at": "2026-09-11",
+      "allowed_fields": [
+        "edinet_code",
+        "security_code",
+        "filer_name",
+        "corporate_number",
+        "source_url",
+        "source_snapshot"
+      ],
+      "attribution_required": true,
+      "raw_rows_public": false,
+      "note": "EDINET terms are PDL1.0-based. Acquisition must use EDINET-supported download/API paths and preserve attribution."
+    },
+    {
+      "source_id": "jp-jpx-listed",
+      "state": "BLOCK_PUBLIC_REDISTRIBUTION_REVIEW",
+      "terms_url": "https://www.jpx.co.jp/term-of-use/",
+      "checked_at": "2026-09-11",
+      "allowed_fields": [],
+      "attribution_required": false,
+      "raw_rows_public": false,
+      "note": "JPX site terms prohibit unpermitted commercial-purpose data collection and secondary use; no row-level JPX fields enter the v0.1 public client without a separate permission decision."
+    },
+    {
+      "source_id": "ohchr-settlements-business",
+      "state": "BLOCK_PUBLIC_REUSE_PERMISSION_REQUIRED",
+      "terms_url": "https://www.un.org/en/node/133488",
+      "checked_at": "2026-09-11",
+      "allowed_fields": [],
+      "attribution_required": false,
+      "raw_rows_public": false,
+      "note": "UN copyright/reuse guidance requires written permission for redistribution/reuse absent a more specific applicable license. The topic remains NOT_INTEGRATED for public packaging until permission is recorded."
+    }
+  ]
+}
