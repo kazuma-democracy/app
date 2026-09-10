@@ -17,6 +17,7 @@ def rights_fixture() -> dict[str, PublicSourceRights]:
         "source_id", "source_publisher", "source_url", "source_locator",
         "claim_id", "narrow_claim", "category", "predicate",
         "adjudication_status", "confidence", "evidence_date", "retrieved_at",
+        "contract_subject", "contract_subject_classification",
     })
     return {
         "jp-mod-procurement": PublicSourceRights(
@@ -98,6 +99,20 @@ def mod_claim() -> dict:
     }
 
 
+def mod_contract_fact_claim() -> dict:
+    claim = copy.deepcopy(mod_claim())
+    claim["claim_id"] = "claim-mod-contract-fact"
+    claim["claim"]["predicate"] = "received_contract_from_japan_ministry_of_defense"
+    claim["claim"]["value"] = {
+        "contracting_authority": "Japan Ministry of Defense",
+        "contract_subject": "synthetic subject",
+        "contract_amount_jpy": 123456789,
+        "supplier_name_as_published": "synthetic supplier",
+        "corporate_number": "1111111111111",
+    }
+    return claim
+
+
 def blocked_ohchr_claim() -> dict:
     claim = copy.deepcopy(mod_claim())
     claim["claim_id"] = "claim-ohchr-blocked"
@@ -151,6 +166,52 @@ def test_pack_is_order_independent_and_has_no_local_only_fields():
     assert "wa:org:jp:tse:" not in text
     assert first["manifest"]["release_state"] == "READY_FOR_CAPABILITY_TEST"
     validate_public_browser_pack(first)
+
+
+def test_public_mod_contract_fact_minimizes_nested_value_fields():
+    pack = build_public_browser_pack(
+        public_identity=public_identity_fixture(),
+        coverage=coverage_fixture(),
+        screening=screening_fixture(),
+        evidence_graph={"claims": [mod_claim(), mod_contract_fact_claim()]},
+        identity_bridge=bridge_fixture(),
+        source_rights=rights_fixture(),
+        profile_ids=["public:strict-military-specific:v1"],
+        generated_at="2026-09-11T00:00:00Z",
+        code_commit="abc123",
+    )
+    company = next(row for row in pack["companies"] if row["corporate_number"] == "1111111111111")
+    fact = next(row for row in company["evidence"] if row["claim_id"] == "claim-mod-contract-fact")
+    assert fact["narrow_claim"]["value"] == {"contract_subject": "synthetic subject"}
+
+
+def test_public_mod_nested_value_fails_closed_without_explicit_field_right():
+    rights = rights_fixture()
+    current = rights["jp-mod-procurement"]
+    rights["jp-mod-procurement"] = PublicSourceRights(
+        current.source_id,
+        current.state,
+        current.terms_url,
+        current.checked_at,
+        frozenset(field for field in current.allowed_fields if field != "contract_subject"),
+        current.attribution_required,
+        current.raw_rows_public,
+        current.note,
+    )
+    pack = build_public_browser_pack(
+        public_identity=public_identity_fixture(),
+        coverage=coverage_fixture(),
+        screening=screening_fixture(),
+        evidence_graph={"claims": [mod_contract_fact_claim()]},
+        identity_bridge=bridge_fixture(),
+        source_rights=rights,
+        profile_ids=["public:strict-military-specific:v1"],
+        generated_at="2026-09-11T00:00:00Z",
+        code_commit="abc123",
+    )
+    company = next(row for row in pack["companies"] if row["corporate_number"] == "1111111111111")
+    fact = next(row for row in company["evidence"] if row["claim_id"] == "claim-mod-contract-fact")
+    assert fact["narrow_claim"]["value"] == {}
 
 
 def test_blocked_ohchr_source_is_not_serialized():

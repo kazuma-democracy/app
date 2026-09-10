@@ -114,6 +114,38 @@ def _claims_by_number(
     return result
 
 
+def _public_claim_value(
+    claim_payload: Mapping[str, Any],
+    source_ids: Sequence[str],
+    rights: Mapping[str, PublicSourceRights],
+) -> dict[str, Any]:
+    value = claim_payload.get("value")
+    if not isinstance(value, Mapping):
+        return {}
+
+    predicate = str(claim_payload.get("predicate", ""))
+    allowed_by_predicate = {
+        "received_contract_from_japan_ministry_of_defense": {
+            "contract_subject": "contract_subject",
+        },
+        "contract_subject_classification": {
+            "classification": "contract_subject_classification",
+            "contract_subject": "contract_subject",
+        },
+    }.get(predicate, {})
+
+    if not source_ids:
+        return {}
+    common_allowed = set.intersection(
+        *(set(rights[source_id].allowed_fields) for source_id in source_ids)
+    )
+    return {
+        key: deepcopy(value[key])
+        for key, rights_field in allowed_by_predicate.items()
+        if key in value and rights_field in common_allowed
+    }
+
+
 def _public_claim(
     claim: Mapping[str, Any], rights: Mapping[str, PublicSourceRights]
 ) -> tuple[dict[str, Any] | None, list[str]]:
@@ -152,7 +184,7 @@ def _public_claim(
         "narrow_claim": {
             "category": card["claim"]["category"],
             "predicate": card["claim"]["predicate"],
-            "value": deepcopy(card["claim"].get("value")),
+            "value": _public_claim_value(card["claim"], source_ids, rights),
         },
         "adjudication": {
             "status": card["adjudication"]["status"],
