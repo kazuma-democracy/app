@@ -1,0 +1,86 @@
+name: public-browser-extension
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'clients/browser-extension/**'
+      - 'configs/m2-5-public-browser-extension-v0.1.json'
+      - 'configs/public-browser-extension-policies-v0.1.json'
+      - 'configs/public-client-sources-v0.1.json'
+      - 'src/wa_commons/public_client/**'
+      - 'scripts/build_public_company_identity.py'
+      - 'scripts/build_public_browser_pack.py'
+      - 'scripts/build_browser_extension_packages.py'
+      - 'tests/browser_extension_search.test.mjs'
+      - 'tests/test_browser_*.py'
+      - 'tests/test_public_*.py'
+      - 'docs/PUBLIC_BROWSER_EXTENSION_RELEASE.md'
+      - 'docs/results/M2_5_PUBLIC_BROWSER_EXTENSION_V01.md'
+      - '.github/workflows/public-browser-extension.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Run focused public-client and extension tests
+        run: >-
+          python -m pytest -q
+          tests/test_public_browser_extension_config.py
+          tests/test_public_client_source_rights.py
+          tests/test_public_company_identity.py
+          tests/test_public_company_identity_cli.py
+          tests/test_public_browser_extension_policies.py
+          tests/test_public_browser_extension_topics.py
+          tests/test_public_policy_screening.py
+          tests/test_public_browser_pack.py
+          tests/test_public_browser_pack_cli.py
+          tests/test_browser_extension_static.py
+          tests/test_browser_page_hint_contract.py
+          tests/test_browser_extension_packaging.py
+          tests/test_public_browser_extension_release_contract.py
+
+      - name: Run dependency-free browser search tests
+        run: node --test tests/browser_extension_search.test.mjs
+
+      - name: Build deterministic four-target capability packages
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.build_browser_extension_packages import build_all_packages
+
+          results = build_all_packages(
+              Path("tests/fixtures/public-browser-pack.synthetic.json"),
+              Path("artifacts/public-browser-extension"),
+          )
+          print(json.dumps({
+              item.browser: {
+                  "sha256": item.sha256,
+                  "permissions": list(item.permissions),
+              }
+              for item in results
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload synthetic capability packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-browser-extension-synthetic-packages
+          path: artifacts/public-browser-extension/*.zip
+          retention-days: 14
